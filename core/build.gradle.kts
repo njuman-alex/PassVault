@@ -13,4 +13,6 @@ kotlin {
 }
 dependencies {
     testImplementation(libs.junit)
+    implementation(libs.bcprov)
+    testImplementation(libs.junit)
 }
