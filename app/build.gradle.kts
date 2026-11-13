@@ -54,4 +54,5 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.documentfile)
     implementation(project(":core"))
+    implementation(libs.androidx.compose.material.icons.core)
 }

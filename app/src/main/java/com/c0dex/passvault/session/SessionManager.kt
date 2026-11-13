@@ -198,4 +198,13 @@ class SessionManager(
         fails >= 5 -> 5_000L
         else -> 0L
     }
+
+    /** Записывает новый контейнер и обновляет сессию (для CRUD записей). */
+    fun replaceContainer(c: VaultContainer): Boolean {
+        val uri = prefs.vaultUri?.let(Uri::parse) ?: return false
+        if (!store.write(uri, ContainerCodec.serialize(c))) return false
+        container = c
+        touch()
+        return true
+    }
 }

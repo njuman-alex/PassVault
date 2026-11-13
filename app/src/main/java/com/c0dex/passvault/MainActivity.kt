@@ -16,9 +16,11 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
 import com.c0dex.passvault.data.SettingsPrefs
 import com.c0dex.passvault.data.VaultFileStore
+import com.c0dex.passvault.data.VaultRepository
 import com.c0dex.passvault.session.SessionManager
 import com.c0dex.passvault.ui.lock.LockScreen
 import com.c0dex.passvault.ui.theme.PassVaultTheme
+import com.c0dex.passvault.ui.vault.VaultListScreen
 
 /**
  * Single Activity + гейт по состоянию сессии (D-004).
@@ -32,6 +34,7 @@ class MainActivity : ComponentActivity() {
         val prefs = SettingsPrefs(this)
         val store = VaultFileStore(this)
         val session = SessionManager(this, store, prefs, lifecycleScope)
+        val repo = VaultRepository(session)
 
         setContent {
             PassVaultTheme {
@@ -53,7 +56,8 @@ class MainActivity : ComponentActivity() {
                 when (state) {
                     is SessionManager.State.Locked -> LockScreen(session, store, prefs)
                     //is SessionManager.State.Unlocked -> VaultShellPlaceholder(session)
-                    is SessionManager.State.Unlocked -> VaultShellPlaceholder(onLock = { session.lock() })
+                    //is SessionManager.State.Unlocked -> VaultShellPlaceholder(onLock = { session.lock() })
+                    is SessionManager.State.Unlocked -> VaultListScreen(session, repo, onOpen = { /* деталь/редактирование — шаг 11 */ })
                 }
             }
         }

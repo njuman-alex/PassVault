@@ -57,7 +57,7 @@ object PasswordGenerator {
         return o.length * log2(p.toDouble())
     }
 
-    fun generate(o: Options, random: SecureRandom = SecureRandom()): String {
+    fun generate(o: Options = Options(), random: SecureRandom = SecureRandom()): String {
         val g = groups(o)
         require(g.isNotEmpty()) { "at least one group must be enabled" }
         require(o.length >= 1) { "length must be >= 1" }
