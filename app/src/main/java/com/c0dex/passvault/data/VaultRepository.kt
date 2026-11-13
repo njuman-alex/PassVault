@@ -51,4 +51,6 @@ class VaultRepository(private val session: SessionManager) {
         } ?: return false
         return session.replaceContainer(c.copy(records = c.records.map { if (it.id == id) newEnv else it }))
     }
+
+    fun get(id: String): RecordView? = list().firstOrNull { it.id == id }
 }

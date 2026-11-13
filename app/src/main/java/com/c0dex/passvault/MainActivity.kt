@@ -14,12 +14,17 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.c0dex.passvault.data.SettingsPrefs
 import com.c0dex.passvault.data.VaultFileStore
 import com.c0dex.passvault.data.VaultRepository
+import com.c0dex.passvault.session.ClipboardHelper
 import com.c0dex.passvault.session.SessionManager
 import com.c0dex.passvault.ui.lock.LockScreen
 import com.c0dex.passvault.ui.theme.PassVaultTheme
+import com.c0dex.passvault.ui.vault.DetailScreen
 import com.c0dex.passvault.ui.vault.VaultListScreen
 
 /**
@@ -35,6 +40,7 @@ class MainActivity : ComponentActivity() {
         val store = VaultFileStore(this)
         val session = SessionManager(this, store, prefs, lifecycleScope)
         val repo = VaultRepository(session)
+        val clipboard = ClipboardHelper(this, prefs, lifecycleScope)
 
         setContent {
             PassVaultTheme {
@@ -53,11 +59,29 @@ class MainActivity : ComponentActivity() {
                     onDispose { owner.lifecycle.removeObserver(observer) }
                 }
 
-                when (state) {
-                    is SessionManager.State.Locked -> LockScreen(session, store, prefs)
-                    //is SessionManager.State.Unlocked -> VaultShellPlaceholder(session)
-                    //is SessionManager.State.Unlocked -> VaultShellPlaceholder(onLock = { session.lock() })
-                    is SessionManager.State.Unlocked -> VaultListScreen(session, repo, onOpen = { /* деталь/редактирование — шаг 11 */ })
+//                when (state) {
+//                    is SessionManager.State.Locked -> LockScreen(session, store, prefs)
+//                    //is SessionManager.State.Unlocked -> VaultShellPlaceholder(session)
+//                    //is SessionManager.State.Unlocked -> VaultShellPlaceholder(onLock = { session.lock() })
+//                    is SessionManager.State.Unlocked -> VaultListScreen(session, repo, onOpen = { /* деталь/редактирование — шаг 11 */ })
+//                }
+                if (state is SessionManager.State.Locked) {
+                    LockScreen(session, store, prefs)
+                } else {
+                    val nav = rememberNavController()
+                    NavHost(navController = nav, startDestination = "list") {
+                        composable("list") {
+                            VaultListScreen(session, repo, onOpen = { id -> nav.navigate("detail/$id") })
+                        }
+                        composable("detail/{id}") { entry ->
+                            DetailScreen(
+                                id = entry.arguments?.getString("id") ?: "",
+                                repo = repo,
+                                clipboard = clipboard,
+                                onBack = { nav.popBackStack() }
+                            )
+                        }
+                    }
                 }
             }
         }
