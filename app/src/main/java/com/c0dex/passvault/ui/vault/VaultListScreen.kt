@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,13 +34,17 @@ fun VaultListContent(
     onQuery: (String) -> Unit,
     onOpen: (String) -> Unit,
     onAdd: () -> Unit,
-    onLock: () -> Unit
+    onLock: () -> Unit,
+    onSettings: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("PassVault") },
-                actions = { IconButton(onClick = onLock) { Icon(Icons.Default.Lock, "Заблокировать") } }
+                actions = {
+                    IconButton(onClick = onLock) { Icon(Icons.Default.Lock, "Заблокировать") }
+                    IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, "Настройки") }
+                }
             )
         },
         floatingActionButton = { FloatingActionButton(onClick = onAdd) { Icon(Icons.Default.Add, "Добавить") } }
