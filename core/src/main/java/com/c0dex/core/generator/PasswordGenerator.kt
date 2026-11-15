@@ -93,7 +93,9 @@ object PasswordGenerator {
     object Wordlists {
         fun effLarge(): List<String> =
             PasswordGenerator::class.java.getResourceAsStream("/words/eff_large.txt")
-                ?.bufferedReader()?.readLines()?.filter { it.isNotBlank() }
+                ?.bufferedReader()?.readLines()
+                ?.map { it.substringAfter('\t', it).trim() }
+                ?.filter { it.isNotBlank() && it.all { c -> c.isLetter() } }
                 ?: error("words/eff_large.txt missing in core resources")
     }
 }

@@ -13,10 +13,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.c0dex.core.generator.PasswordGenerator
 import com.c0dex.passvault.data.VaultRepository
 import com.c0dex.passvault.session.ClipboardHelper
 import com.c0dex.passvault.ui.theme.PassVaultTheme
+import com.c0dex.passvault.ui.generator.GeneratorDialog
 
 data class DetailUiState(
     val description: String = "",
@@ -81,7 +81,9 @@ fun DetailContent(
             }
             if (state.editing) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onGenerate) { Text("🎲 Сгенерировать") }
+                    //OutlinedButton(onClick = onGenerate) { Text("🎲 Сгенерировать") }
+                    //OutlinedButton(onClick = { showGen = true }) { Text("🎲 Генератор…") }
+                    OutlinedButton(onClick = onGenerate) { Text("🎲 Генератор…") }
                     Button(onClick = onSave, enabled = state.description.isNotEmpty() && state.password.isNotEmpty()) { Text("Сохранить") }
                 }
             }
@@ -102,6 +104,7 @@ fun DetailScreen(
     var revealed by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var showGen by remember { mutableStateOf(false) }
 
     DetailContent(
         state = DetailUiState(desc, pass, revealed, editing, missing = record == null),
@@ -117,7 +120,8 @@ fun DetailScreen(
         },
         onDelete = { confirmDelete = true },
         onCopy = { clipboard.copySensitive("password", pass) },
-        onGenerate = { pass = PasswordGenerator.generate(); editing = true },
+        //onGenerate = { pass = PasswordGenerator.generate(); editing = true },
+        onGenerate = { showGen = true },
         onBack = onBack
     )
 
@@ -132,6 +136,7 @@ fun DetailScreen(
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Отмена") } }
         )
     }
+    if (showGen) GeneratorDialog(onDismiss = { showGen = false }, onUse = { pass = it; editing = true; showGen = false })
 }
 
 @Preview(showBackground = true, name = "View")

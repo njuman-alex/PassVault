@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.c0dex.core.generator.PasswordGenerator
 import com.c0dex.passvault.data.VaultRepository
 import com.c0dex.passvault.session.SessionManager
+import com.c0dex.passvault.ui.generator.GeneratorDialog
 import com.c0dex.passvault.ui.theme.PassVaultTheme
 
 data class VaultListUiState(
@@ -103,6 +104,7 @@ fun VaultListScreen(
     var showAdd by remember { mutableStateOf(false) }
     var desc by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
+    var showGen by remember { mutableStateOf(false) }
 
     LaunchedEffect(tick, sessionState) { items = repo.list() }
 
@@ -124,7 +126,7 @@ fun VaultListScreen(
                     OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Описание") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Пароль") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    TextButton(onClick = { pass = PasswordGenerator.generate() }) { Text("🎲 Сгенерировать") }
+                    TextButton(onClick = { showGen = true }) { Text("🎲 Генератор…") }
                 }
             },
             confirmButton = {
@@ -136,6 +138,7 @@ fun VaultListScreen(
             dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Отмена") } }
         )
     }
+    if (showGen) GeneratorDialog(onDismiss = { showGen = false }, onUse = { pass = it; showGen = false })
 }
 
 @Preview(showBackground = true, name = "List")
