@@ -14,7 +14,7 @@ android {
         minSdk = 30
         targetSdk = 37
         versionCode = 1
-        versionName = "1.0"
+        versionName = "5.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,6 +34,15 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            val v = output.versionName.orNull ?: "0.0"
+            output.outputFileName.set("PassVault_${variant.buildType}_v$v.apk")
+        }
     }
 }
 

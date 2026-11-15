@@ -18,7 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.c0dex.core.generator.PasswordGenerator
+import com.c0dex.core.util.TimeFormat
 import com.c0dex.passvault.data.VaultRepository
 import com.c0dex.passvault.session.SessionManager
 import com.c0dex.passvault.ui.generator.GeneratorDialog
@@ -78,7 +78,8 @@ fun VaultListContent(
                             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(r.description, style = MaterialTheme.typography.titleMedium)
-                                    Text("обновлено: ${r.updatedAt}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    //Text("обновлено: ${r.updatedAt}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("обновлено: ${TimeFormat.human(r.updatedAt)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Icon(Icons.Default.KeyboardArrowRight, null)
                             }
