@@ -3,14 +3,8 @@ package com.c0dex.passvault
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
@@ -23,13 +17,14 @@ import com.c0dex.passvault.data.VaultRepository
 import com.c0dex.passvault.session.ClipboardHelper
 import com.c0dex.passvault.session.SessionManager
 import com.c0dex.passvault.ui.lock.LockScreen
+import com.c0dex.passvault.ui.settings.SettingsScreen
 import com.c0dex.passvault.ui.theme.PassVaultTheme
 import com.c0dex.passvault.ui.vault.DetailScreen
 import com.c0dex.passvault.ui.vault.VaultListScreen
 
 /**
  * Single Activity + гейт по состоянию сессии (D-004).
- * LOCKED -> только лок-скрин; UNLOCKED -> оболочка vault (список придёт в шаге 10).
+ * LOCKED -> только лок-скрин; UNLOCKED -> NavHost (список / деталь / настройки).
  */
 class MainActivity : ComponentActivity() {
 
@@ -59,19 +54,17 @@ class MainActivity : ComponentActivity() {
                     onDispose { owner.lifecycle.removeObserver(observer) }
                 }
 
-//                when (state) {
-//                    is SessionManager.State.Locked -> LockScreen(session, store, prefs)
-//                    //is SessionManager.State.Unlocked -> VaultShellPlaceholder(session)
-//                    //is SessionManager.State.Unlocked -> VaultShellPlaceholder(onLock = { session.lock() })
-//                    is SessionManager.State.Unlocked -> VaultListScreen(session, repo, onOpen = { /* деталь/редактирование — шаг 11 */ })
-//                }
                 if (state is SessionManager.State.Locked) {
                     LockScreen(session, store, prefs)
                 } else {
                     val nav = rememberNavController()
                     NavHost(navController = nav, startDestination = "list") {
                         composable("list") {
-                            VaultListScreen(session, repo, onOpen = { id -> nav.navigate("detail/$id") })
+                            VaultListScreen(
+                                session, repo,
+                                onOpen = { id -> nav.navigate("detail/$id") },
+                                onSettings = { nav.navigate("settings") }
+                            )
                         }
                         composable("detail/{id}") { entry ->
                             DetailScreen(
@@ -81,45 +74,12 @@ class MainActivity : ComponentActivity() {
                                 onBack = { nav.popBackStack() }
                             )
                         }
+                        composable("settings") {
+                            SettingsScreen(session, store, prefs, onBack = { nav.popBackStack() })
+                        }
                     }
                 }
             }
         }
     }
 }
-
-/** Временная оболочка: список записей приедет в шаге 10. */
-//@Composable
-//private fun VaultShellPlaceholder(session: SessionManager) {
-//    Column(
-//        modifier = Modifier.fillMaxSize().padding(24.dp),
-//        horizontalAlignment = Alignment.CenterHorizontally,
-//        verticalArrangement = Arrangement.Center
-//    ) {
-//        Text("Vault разблокирован 🔓", style = MaterialTheme.typography.headlineSmall)
-//        Spacer(Modifier.height(8.dp))
-//        Text("Список записей появится в шаге 10", color = MaterialTheme.colorScheme.onSurfaceVariant)
-//        Spacer(Modifier.height(24.dp))
-//        Button(onClick = { session.lock() }) { Text("Заблокировать") }
-//    }
-//}
-
-/** Временная оболочка: список записей приедет в шаге 10. */
-@Composable
-internal fun VaultShellPlaceholder(onLock: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text("Vault разблокирован 🔓", style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(8.dp))
-        Text("Список записей появится в шаге 10", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onLock) { Text("Заблокировать") }
-    }
-}
-
-@Preview(showBackground = true, name = "Shell")
-@Composable
-private fun VaultShellPreview() = PassVaultTheme { VaultShellPlaceholder {} }

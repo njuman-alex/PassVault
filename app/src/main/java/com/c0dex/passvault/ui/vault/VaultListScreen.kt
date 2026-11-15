@@ -42,8 +42,8 @@ fun VaultListContent(
             TopAppBar(
                 title = { Text("PassVault") },
                 actions = {
-                    IconButton(onClick = onLock) { Icon(Icons.Default.Lock, "Заблокировать") }
                     IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, "Настройки") }
+                    IconButton(onClick = onLock) { Icon(Icons.Default.Lock, "Заблокировать") }
                 }
             )
         },
@@ -90,7 +90,12 @@ fun VaultListContent(
 }
 
 @Composable
-fun VaultListScreen(session: SessionManager, repo: VaultRepository, onOpen: (String) -> Unit) {
+fun VaultListScreen(
+    session: SessionManager,
+    repo: VaultRepository,
+    onOpen: (String) -> Unit,
+    onSettings: () -> Unit = {}
+) {
     val sessionState by session.state.collectAsState()
     var query by remember { mutableStateOf("") }
     var items by remember { mutableStateOf(repo.list()) }
@@ -106,7 +111,8 @@ fun VaultListScreen(session: SessionManager, repo: VaultRepository, onOpen: (Str
         onQuery = { query = it },
         onOpen = onOpen,
         onAdd = { showAdd = true },
-        onLock = { session.lock() }
+        onLock = { session.lock() },
+        onSettings = onSettings
     )
 
     if (showAdd) {

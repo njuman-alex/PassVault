@@ -56,6 +56,7 @@ class SessionManager(
     private var idleJob: Job? = null
     private var backgroundTs = 0L
     private var failUntil = 0L
+    private var externalActivity = false
 
     /** Доступ к DEK только в UNLOCKED; вызывающий не сохраняет и не затирает массив. */
     fun <T> withDek(block: (ByteArray) -> T): T? = dek?.let(block)
@@ -171,16 +172,6 @@ class SessionManager(
         if (idle > 0 && System.currentTimeMillis() - prefs.lastActiveTs > idle) lock()
     }
 
-    fun onBackground() {
-        backgroundTs = System.currentTimeMillis()
-    }
-
-    fun onForeground() {
-        if (!isUnlocked) return
-        val grace = prefs.backgroundGraceMs
-        if (System.currentTimeMillis() - backgroundTs > grace) lock()
-        else { touch(); startIdle() }
-    }
 
     private fun startIdle() {
         idleJob?.cancel()
@@ -206,5 +197,25 @@ class SessionManager(
         container = c
         touch()
         return true
+    }
+
+    fun beginExternalActivity() { externalActivity = true }
+
+    fun endExternalActivity() {
+        externalActivity = false
+        if (isUnlocked) { touch(); startIdle() }
+    }
+
+    fun onBackground() {
+        if (externalActivity) return
+        backgroundTs = System.currentTimeMillis()
+    }
+
+    fun onForeground() {
+        if (!isUnlocked) return
+        if (externalActivity) { endExternalActivity(); return }
+        val grace = prefs.backgroundGraceMs
+        if (System.currentTimeMillis() - backgroundTs > grace) lock()
+        else { touch(); startIdle() }
     }
 }
