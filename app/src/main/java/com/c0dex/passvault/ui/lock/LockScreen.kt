@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,7 +45,7 @@ fun LockScreenContent(
     onToggleMode: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -64,6 +66,13 @@ fun LockScreenContent(
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
+        if (state.master.isEmpty()) {
+            Text(
+                if (state.creating) "Придумайте мастер-пароль — он не хранится нигде" else "Введите мастер-пароль",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         if (state.creating) {
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
@@ -110,7 +119,6 @@ fun LockScreenContent(
         TextButton(onClick = onToggleMode) {
             Text(if (state.creating) "У меня уже есть vault" else "Создать новый vault")
         }
-        TextButton(onClick = {}, enabled = false) { Text("Recovery (скоро)") }
     }
 }
 
