@@ -89,9 +89,9 @@ class SessionManager(
             container = c
             prefs.failCount = 0
             prefs.vaultUri = uri.toString()
+            _state.value = State.Unlocked   // состояние ДО запуска тикера
             touch()
             startIdle()
-            _state.value = State.Unlocked
             return UnlockResult.Success
         } finally {
             master.fill('\u0000')
@@ -116,9 +116,9 @@ class SessionManager(
             container = c
             prefs.vaultUri = uri.toString()
             prefs.failCount = 0
+            _state.value = State.Unlocked   // состояние ДО запуска тикера
             touch()
             startIdle()
-            _state.value = State.Unlocked
             return true
         } finally {
             master.fill('\u0000')
@@ -172,12 +172,13 @@ class SessionManager(
         if (idle > 0 && System.currentTimeMillis() - prefs.lastActiveTs > idle) lock()
     }
 
-
+    /** Тикер: сначала delay, потом проверка — не зависит от состояния в момент старта. */
     private fun startIdle() {
         idleJob?.cancel()
         idleJob = scope.launch {
-            while (isUnlocked) {
+            while (true) {
                 delay(1000)
+                if (!isUnlocked) break
                 checkIdle()
             }
         }
@@ -198,6 +199,8 @@ class SessionManager(
         touch()
         return true
     }
+
+    // ===== внешние activity (SAF picker и т.п.): не считать уходом в фон =====
 
     fun beginExternalActivity() { externalActivity = true }
 

@@ -40,7 +40,7 @@
 ## 7. Навигационный гейт
 - В LOCKED граф UI физически не содержит экранов vault.
 - Back на лок-скрине = выход из приложения.
-- Android: exported=false на всех активностях; обходов через intents нет.
+- Android: launcher-activity exported=true (системное требование); других activity нет; обходов через intents нет.
 
 ## 8. Дефолты (приняты)
 - grace при фоне: 0 (сразу).

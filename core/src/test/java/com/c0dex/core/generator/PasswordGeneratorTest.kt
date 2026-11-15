@@ -31,7 +31,7 @@ class PasswordGeneratorTest {
         repeat(50) {
             val s = PasswordGenerator.generate(o)
             assertTrue(s.any { it in "abcdefghijkmnpqrstuvwxyz" })
-            assertTrue(s.any { it in "ABCDEFGHJKMNPQRSTUVWXYZ" })
+            assertTrue(s.any { it in "ABCDEFGHJKLMNPQRSTUVWXYZ" })
             assertTrue(s.any { it in "23456789" })
             assertTrue(s.any { it in "!@#$%^&*()_+-=[]{}|;:,.<>?" })
         }

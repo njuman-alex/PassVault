@@ -3,7 +3,13 @@ package com.c0dex.passvault
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -25,6 +31,7 @@ import com.c0dex.passvault.ui.vault.VaultListScreen
 /**
  * Single Activity + гейт по состоянию сессии (D-004).
  * LOCKED -> только лок-скрин; UNLOCKED -> NavHost (список / деталь / настройки).
+ * Любое касание = активность (сброс idle-таймера).
  */
 class MainActivity : ComponentActivity() {
 
@@ -54,28 +61,37 @@ class MainActivity : ComponentActivity() {
                     onDispose { owner.lifecycle.removeObserver(observer) }
                 }
 
-                if (state is SessionManager.State.Locked) {
-                    LockScreen(session, store, prefs)
-                } else {
-                    val nav = rememberNavController()
-                    NavHost(navController = nav, startDestination = "list") {
-                        composable("list") {
-                            VaultListScreen(
-                                session, repo,
-                                onOpen = { id -> nav.navigate("detail/$id") },
-                                onSettings = { nav.navigate("settings") }
-                            )
+                Box(
+                    Modifier.fillMaxSize().pointerInput(Unit) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            session.touch()
                         }
-                        composable("detail/{id}") { entry ->
-                            DetailScreen(
-                                id = entry.arguments?.getString("id") ?: "",
-                                repo = repo,
-                                clipboard = clipboard,
-                                onBack = { nav.popBackStack() }
-                            )
-                        }
-                        composable("settings") {
-                            SettingsScreen(session, store, prefs, onBack = { nav.popBackStack() })
+                    }
+                ) {
+                    if (state is SessionManager.State.Locked) {
+                        LockScreen(session, store, prefs)
+                    } else {
+                        val nav = rememberNavController()
+                        NavHost(navController = nav, startDestination = "list") {
+                            composable("list") {
+                                VaultListScreen(
+                                    session, repo,
+                                    onOpen = { id -> nav.navigate("detail/$id") },
+                                    onSettings = { nav.navigate("settings") }
+                                )
+                            }
+                            composable("detail/{id}") { entry ->
+                                DetailScreen(
+                                    id = entry.arguments?.getString("id") ?: "",
+                                    repo = repo,
+                                    clipboard = clipboard,
+                                    onBack = { nav.popBackStack() }
+                                )
+                            }
+                            composable("settings") {
+                                SettingsScreen(session, store, prefs, onBack = { nav.popBackStack() })
+                            }
                         }
                     }
                 }
