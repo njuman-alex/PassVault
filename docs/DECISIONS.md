@@ -10,3 +10,4 @@
 - D-010: генератор — доменная логика в :core (паритет Android/Windows); размещение в UI — по D-009 (опция, не главный экран).
 - D-011: запись vault = прямая truncate-запись по стабильному Uri; атомарный rename через SAF отклонён (меняет document-id, ломает ссылку); recovery = версии облака.
 - D-012: FORMAT.md v1.1 — запись по D-011 (прямая truncate, recovery = версии облака); SESSION §7 уточнён (launcher exported=true).
+- D-013: Windows-порт этап 1 = CLI (:wincli) поверх :core; паритет формата доказан кросс-платформенно. Десктоп пишет атомарно tmp+rename (D-011 касается только SAF/Android). Этап 2 = GUI (Compose Desktop).
