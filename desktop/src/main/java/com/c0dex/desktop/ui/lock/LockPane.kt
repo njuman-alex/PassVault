@@ -27,9 +27,9 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
     ) {
         Text("PassVault", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
-        Text(if (creating) "Создание нового vault" else "Файл: ${path.ifEmpty { "не выбран" }}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(if (creating) "Создание нового сейфа" else "Файл: ${path.ifEmpty { "не выбран" }}", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(16.dp))
-        OutlinedTextField(value = path, onValueChange = { path = it }, label = { Text("Путь к vault") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = path, onValueChange = { path = it }, label = { Text("Путь к файлу") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = { chooseFile(save = creating)?.let { path = it.toString() } }, modifier = Modifier.fillMaxWidth()) {
             Text(if (creating) "Выбрать папку и имя…" else "Выбрать файл…")
@@ -47,7 +47,7 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
                 if (path.isEmpty()) { error = "Выберите файл"; return@Button }
                 if (creating) {
                     if (master != confirm) { error = "Пароли не совпадают"; return@Button }
-                    if (!session.create(Path.of(path), master.toCharArray())) error = "Не удалось записать vault"
+                    if (!session.create(Path.of(path), master.toCharArray())) error = "Не удалось записать сейф-файл"
                 } else {
                     error = when (val r = session.unlock(Path.of(path), master.toCharArray())) {
                         is DesktopSession.UnlockResult.Success -> null
@@ -61,10 +61,10 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
             },
             enabled = master.isNotEmpty() && (!creating || confirm.isNotEmpty()),
             modifier = Modifier.fillMaxWidth()
-        ) { Text(if (creating) "Создать vault" else "Разблокировать") }
+        ) { Text(if (creating) "Создать сейф-файл" else "Разблокировать") }
         Spacer(Modifier.height(8.dp))
         TextButton(onClick = { creating = !creating; error = null }) {
-            Text(if (creating) "У меня уже есть vault" else "Создать новый vault")
+            Text(if (creating) "У меня уже есть сейф-файл" else "Создать новый сейф-файл")
         }
     }
 }
