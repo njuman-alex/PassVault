@@ -44,80 +44,86 @@ fun LockScreenContent(
     onCreate: () -> Unit,
     onToggleMode: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text("PassVault", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            if (state.creating) "Создание нового vault" else "Файл: ${state.fileName ?: "не выбран"}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(24.dp))
-
-        OutlinedTextField(
-            value = state.master,
-            onValueChange = onMasterChange,
-            label = { Text("Мастер-пароль") },
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        if (state.master.isEmpty()) {
+    Scaffold { pad ->
+        Column(
+            modifier = Modifier
+                .padding(pad)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("PassVault", style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(8.dp))
             Text(
-                if (state.creating) "Придумайте мастер-пароль — он не хранится нигде" else "Введите мастер-пароль",
-                style = MaterialTheme.typography.bodySmall,
+                if (state.creating) "Создание нового vault" else "Файл: ${state.fileName ?: "не выбран"}",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-        if (state.creating) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(24.dp))
+
             OutlinedTextField(
-                value = state.confirm,
-                onValueChange = onConfirmChange,
-                label = { Text("Повторите мастер-пароль") },
+                value = state.master,
+                onValueChange = onMasterChange,
+                label = { Text("Мастер-пароль") },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-        }
-        Spacer(Modifier.height(16.dp))
-
-        if (state.error != null) {
-            Text(state.error, color = MaterialTheme.colorScheme.error)
-            Spacer(Modifier.height(8.dp))
-        }
-
-        if (state.creating) {
-            OutlinedButton(onClick = onPickTree, modifier = Modifier.fillMaxWidth()) {
-                Text(if (state.treeChosen) "Папка выбрана ✓" else "Выбрать папку для vault")
+            if (state.master.isEmpty()) {
+                Text(
+                    if (state.creating) "Придумайте мастер-пароль — он не хранится нигде" else "Введите мастер-пароль",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            Spacer(Modifier.height(8.dp))
-            Button(
-                onClick = onCreate,
-                enabled = state.master.isNotEmpty() && state.confirm.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Создать vault") }
-        } else {
-            if (!state.hasVaultFile) {
-                OutlinedButton(onClick = onPickFile, modifier = Modifier.fillMaxWidth()) {
-                    Text("Выбрать файл vault")
-                }
+            if (state.creating) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = state.confirm,
+                    onValueChange = onConfirmChange,
+                    label = { Text("Повторите мастер-пароль") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+
+            if (state.error != null) {
+                Text(state.error, color = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.height(8.dp))
             }
-            Button(
-                onClick = onUnlock,
-                enabled = state.master.isNotEmpty() && state.hasVaultFile,
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Разблокировать") }
-        }
 
-        Spacer(Modifier.height(16.dp))
-        TextButton(onClick = onToggleMode) {
-            Text(if (state.creating) "У меня уже есть vault" else "Создать новый vault")
+            if (state.creating) {
+                OutlinedButton(onClick = onPickTree, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (state.treeChosen) "Папка выбрана ✓" else "Выбрать папку для vault")
+                }
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = onCreate,
+                    enabled = state.master.isNotEmpty() && state.confirm.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Создать vault") }
+            } else {
+                if (!state.hasVaultFile) {
+                    OutlinedButton(onClick = onPickFile, modifier = Modifier.fillMaxWidth()) {
+                        Text("Выбрать файл vault")
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+                Button(
+                    onClick = onUnlock,
+                    enabled = state.master.isNotEmpty() && state.hasVaultFile,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Разблокировать") }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            TextButton(onClick = onToggleMode) {
+                Text(if (state.creating) "У меня уже есть vault" else "Создать новый vault")
+            }
         }
     }
 }
