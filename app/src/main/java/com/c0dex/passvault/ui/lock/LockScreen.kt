@@ -57,7 +57,7 @@ fun LockScreenContent(
             Text("PassVault", style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(8.dp))
             Text(
-                if (state.creating) "Создание нового vault" else "Файл: ${state.fileName ?: "не выбран"}",
+                if (state.creating) "Создание нового сейфа" else "Сейф-файл: ${state.fileName ?: "не выбран"}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -105,7 +105,7 @@ fun LockScreenContent(
                     onClick = onCreate,
                     enabled = state.master.isNotEmpty() && state.confirm.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Создать vault") }
+                ) { Text("Создать сейф") }
             } else {
                 if (!state.hasVaultFile) {
                     OutlinedButton(onClick = onPickFile, modifier = Modifier.fillMaxWidth()) {
@@ -122,7 +122,7 @@ fun LockScreenContent(
 
             Spacer(Modifier.height(16.dp))
             TextButton(onClick = onToggleMode) {
-                Text(if (state.creating) "У меня уже есть vault" else "Создать новый vault")
+                Text(if (state.creating) "У меня уже есть сейф" else "Создать новый сейф")
             }
         }
     }

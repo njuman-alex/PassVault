@@ -60,7 +60,7 @@ fun GeneratorContent(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = state.mode == 0, onClick = { onMode(0) }, label = { Text("Пароль") })
-            FilterChip(selected = state.mode == 1, onClick = { onMode(1) }, label = { Text("Passphrase") })
+            FilterChip(selected = state.mode == 1, onClick = { onMode(1) }, label = { Text("Кодовая фраза") })
         }
 
         if (state.mode == 0) {
@@ -103,7 +103,8 @@ fun GeneratorContent(
         )
         Text(
             if (state.result.isEmpty()) "Не удалось: проверьте длину/группы или словарь"
-            else "Энтропия: ~${state.entropy.toInt()} бит",
+            //else "Энтропия: ~${state.entropy.toInt()} бит",
+            else "",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

@@ -85,9 +85,9 @@ fun SettingsContent(
                 }
             }
 
-            Text("Vault", style = MaterialTheme.typography.titleMedium)
-            Text("Файл: ${state.vaultName ?: "не выбран"}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(onClick = onChangeVault) { Text("Закрыть и выбрать другой vault") }
+            Text("Файл-сейф", style = MaterialTheme.typography.titleMedium)
+            Text("Текущий: ${state.vaultName ?: "не выбран"}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = onChangeVault) { Text("Закрыть и выбрать другой файл") }
             OutlinedButton(onClick = onMergeConflict) { Text("Слить конфликт-копию…") }
             if (state.mergeMsg != null) {
                 Text(state.mergeMsg, color = MaterialTheme.colorScheme.onSurfaceVariant)
