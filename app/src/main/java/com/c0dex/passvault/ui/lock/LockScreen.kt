@@ -98,7 +98,7 @@ fun LockScreenContent(
 
             if (state.creating) {
                 OutlinedButton(onClick = onPickTree, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (state.treeChosen) "Папка выбрана ✓" else "Выбрать папку для vault")
+                    Text(if (state.treeChosen) "Папка выбрана ✓" else "Выбрать папку для сохранения")
                 }
                 Spacer(Modifier.height(8.dp))
                 Button(
@@ -109,7 +109,7 @@ fun LockScreenContent(
             } else {
                 if (!state.hasVaultFile) {
                     OutlinedButton(onClick = onPickFile, modifier = Modifier.fillMaxWidth()) {
-                        Text("Выбрать файл vault")
+                        Text("Выбрать сейф-файл")
                     }
                     Spacer(Modifier.height(8.dp))
                 }
