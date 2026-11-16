@@ -2,6 +2,7 @@
 
 import com.c0dex.desktop.session.DesktopSession
 import com.c0dex.desktop.data.DesktopPrefs
+import com.c0dex.desktop.io.VaultFileIO
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,51 +12,69 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.c0dex.core.format.ContainerCodec
-import com.c0dex.desktop.io.VaultFileIO
 import com.c0dex.core.merge.VaultMerger
+import java.nio.file.Path
 import javax.swing.JFileChooser
+
+private val IDLE_PRESETS = listOf(1, 5, 15, 30, 60, 0)
+private val CLIP_PRESETS = listOf(10, 30, 60, 0)
+private val GRACE_PRESETS = listOf(0, 30, 60)
 
 @Composable
 fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Unit) {
-    var idleMin by remember { mutableStateOf((prefs.idleMs / 60000).toInt()) }
-    var graceSec by remember { mutableStateOf((prefs.graceMs / 1000).toInt()) }
-    var clipSec by remember { mutableStateOf((prefs.clipboardMs / 1000).toInt()) }
-    var mergeMsg by remember { mutableStateOf<String?>(null) }
+    var idleMin by remember { mutableStateOf((prefs.idleMs / 60_000).toInt()) }
+    var clipSec by remember { mutableStateOf((prefs.clipboardMs / 1_000).toInt()) }
+    var graceSec by remember { mutableStateOf((prefs.graceMs / 1_000).toInt()) }
+
     var showMaster by remember { mutableStateOf(false) }
     var newM by remember { mutableStateOf("") }
     var confM by remember { mutableStateOf("") }
-    var mErr by remember { mutableStateOf<String?>(null) }
+    var masterError by remember { mutableStateOf<String?>(null) }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row { Text("Настройки", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f)); TextButton(onClick = onBack) { Text("Назад") } }
+    var mergeMsg by remember { mutableStateOf<String?>(null) }
 
-        Text("Автолок при бездействии", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(1, 5, 15, 30, 60, 0).forEach { m ->
-                FilterChip(selected = idleMin == m, onClick = { idleMin = m; prefs.idleMs = m * 60000L }, label = { Text(if (m == 0) "∞" else "$m м") })
-            }
-        }
-        Text("Лок при потере фокуса", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(0, 30, 60).forEach { g ->
-                FilterChip(selected = graceSec == g, onClick = { graceSec = g; prefs.graceMs = g * 1000L }, label = { Text(if (g == 0) "сразу" else "$g с") })
-            }
-        }
-        Text("Очистка буфера обмена", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(10, 30, 60, 0).forEach { c ->
-                FilterChip(selected = clipSec == c, onClick = { clipSec = c; prefs.clipboardMs = c * 1000L }, label = { Text(if (c == 0) "∞" else "$c с") })
-            }
+    //val vaultName = prefs.vaultPath?.let { Path.of(it).fileName.toString() }
+    val vaultName = prefs.vaultPath
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Row {
+            TextButton(onClick = onBack) { Text("← Назад") }
+            Text("Настройки", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
         }
 
         Text("Безопасность", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { showMaster = true }) { Text("Сменить мастер") }
+            Button(onClick = { showMaster = true }) { Text("Сменить мастер-пароль") }
             OutlinedButton(onClick = { session.lock() }) { Text("Заблокировать") }
         }
-        OutlinedButton(onClick = { prefs.vaultPath = null; session.lock() }) { Text("Закрыть и выбрать другой vault") }
 
-        Text("Синк", style = MaterialTheme.typography.titleMedium)
+        Text("Автолок при бездействии", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            IDLE_PRESETS.forEach { m ->
+                FilterChip(selected = idleMin == m, onClick = { idleMin = m; prefs.idleMs = m * 60_000L }, label = { Text(if (m == 0) "∞" else "$m м") })
+            }
+        }
+
+        Text("Очистка буфера обмена", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CLIP_PRESETS.forEach { s ->
+                FilterChip(selected = clipSec == s, onClick = { clipSec = s; prefs.clipboardMs = s * 1_000L }, label = { Text(if (s == 0) "∞" else "$s с") })
+            }
+        }
+
+        Text("Лок при потере фокуса", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            GRACE_PRESETS.forEach { s ->
+                FilterChip(selected = graceSec == s, onClick = { graceSec = s; prefs.graceMs = s * 1_000L }, label = { Text(if (s == 0) "сразу" else "$s с") })
+            }
+        }
+
+        Text("Файл-сейф", style = MaterialTheme.typography.titleMedium)
+        Text("Текущий: ${vaultName ?: "не выбран"}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedButton(onClick = { prefs.vaultPath = null; session.lock() }) { Text("Закрыть и выбрать другой файл") }
         OutlinedButton(onClick = {
             val fc = JFileChooser()
             if (fc.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
@@ -68,7 +87,11 @@ fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Uni
                     val base = session.currentContainer() ?: return@withDek null
                     VaultMerger.merge(dek, base, other)
                 }
-                mergeMsg = if (merged != null && session.replaceContainer(merged)) "Слито успешно ✓" else "Сначала разблокируйте vault"
+                mergeMsg = when {
+                    merged == null -> "Сначала разблокируйте vault"
+                    !session.replaceContainer(merged) -> "Не удалось записать результат"
+                    else -> "Слито успешно ✓"
+                }
             }
         }) { Text("Слить конфликт-копию…") }
         if (mergeMsg != null) Text(mergeMsg!!, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -81,16 +104,16 @@ fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Uni
             Column {
                 Text("Записи не перешифровываются — меняется только обёртка ключа.", style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = newM, onValueChange = { newM = it; mErr = null }, label = { Text("Новый мастер") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = newM, onValueChange = { newM = it; masterError = null }, label = { Text("Новый мастер-пароль") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = confM, onValueChange = { confM = it; mErr = null }, label = { Text("Повторите") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
-                if (mErr != null) Text(mErr!!, color = MaterialTheme.colorScheme.error)
+                OutlinedTextField(value = confM, onValueChange = { confM = it; masterError = null }, label = { Text("Повторите") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
+                if (masterError != null) Text(masterError!!, color = MaterialTheme.colorScheme.error)
             }
         },
         confirmButton = {
             Button(onClick = {
-                if (newM != confM) { mErr = "Пароли не совпадают"; return@Button }
-                if (session.rotateMaster(newM.toCharArray())) { showMaster = false; newM = ""; confM = "" } else mErr = "Не удалось сохранить"
+                if (newM != confM) { masterError = "Пароли не совпадают"; return@Button }
+                if (session.rotateMaster(newM.toCharArray())) { showMaster = false; newM = ""; confM = "" } else masterError = "Не удалось сохранить"
             }, enabled = newM.isNotEmpty() && confM.isNotEmpty()) { Text("Сменить") }
         },
         dismissButton = { TextButton(onClick = { showMaster = false }) { Text("Отмена") } }
