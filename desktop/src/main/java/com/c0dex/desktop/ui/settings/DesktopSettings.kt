@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.c0dex.core.format.ContainerCodec
-import com.c0dex.core.io.VaultFileIO
+import com.c0dex.desktop.io.VaultFileIO
 import com.c0dex.core.merge.VaultMerger
 import javax.swing.JFileChooser
 

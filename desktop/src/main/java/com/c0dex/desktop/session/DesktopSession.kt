@@ -1,12 +1,12 @@
 ﻿package com.c0dex.desktop.session
 
 import com.c0dex.desktop.data.DesktopPrefs
+import com.c0dex.desktop.io.VaultFileIO
 import com.c0dex.core.crypto.Argon2Kdf
 import com.c0dex.core.crypto.KeyHierarchy
 import com.c0dex.core.format.ContainerCodec
 import com.c0dex.core.format.KdfConfig
 import com.c0dex.core.format.VaultContainer
-import com.c0dex.core.io.VaultFileIO
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -62,7 +62,8 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
         } finally { master.fill('\u0000') }
     }
 
-    fun create(path: Path, master: CharArray): Boolean {
+    /** null = успех, иначе причина для UI. */
+    fun create(path: Path, master: CharArray): String? {
         try {
             val salt = Argon2Kdf.newSalt()
             val params = Argon2Kdf.Params(salt = salt)
@@ -71,12 +72,13 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
             val wrap = KeyHierarchy.wrapDek(d, kek)
             kek.fill(0)
             val c = VaultContainer(KdfConfig(params.memoryKiB, params.iterations, params.parallelism, salt), listOf(wrap), emptyList())
-            if (!VaultFileIO.writeAtomic(path, ContainerCodec.serialize(c))) return false
+            val err = VaultFileIO.writeAtomicMsg(path, ContainerCodec.serialize(c))
+            if (err != null) return err
             dek = d; container = c
             prefs.vaultPath = path.toString(); prefs.failCount = 0
             _state.value = State.Unlocked
             touch(); startIdle()
-            return true
+            return null
         } finally { master.fill('\u0000') }
     }
 

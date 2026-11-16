@@ -53,12 +53,19 @@ private fun load(file: Path, master: CharArray): VaultContainer? {
 }
 
 private fun save(file: Path, c: VaultContainer) {
-    val tmp = Files.createTempFile(file.parent, ".pmv3-", ".tmp")
-    Files.writeString(tmp, ContainerCodec.serialize(c), StandardCharsets.UTF_8)
     try {
-        Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        val tmp = Files.createTempFile(file.parent, ".pmv3-", ".tmp")
+        Files.writeString(tmp, ContainerCodec.serialize(c), StandardCharsets.UTF_8)
+        try {
+            Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } catch (e: Exception) {
+            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING)
+        }
+        println("Сохранено: $file")
+    } catch (e: java.nio.file.AccessDeniedException) {
+        println("Нет прав на запись в папку ${file.parent}")
     } catch (e: Exception) {
-        Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING) // FS без atomic move
+        println("Ошибка записи: ${e.javaClass.simpleName}")
     }
 }
 

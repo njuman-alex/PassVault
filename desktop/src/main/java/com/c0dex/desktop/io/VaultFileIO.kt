@@ -1,4 +1,4 @@
-package com.c0dex.core.io
+package com.c0dex.desktop.io
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -14,7 +14,10 @@ object VaultFileIO {
         null
     }
 
-    fun writeAtomic(p: Path, text: String): Boolean = try {
+    fun writeAtomic(p: Path, text: String): Boolean = writeAtomicMsg(p, text) == null
+
+    /** null = успех, иначе человекочитаемая причина. */
+    fun writeAtomicMsg(p: Path, text: String): String? = try {
         val tmp = Files.createTempFile(p.parent ?: Path.of("."), ".pmv3-", ".tmp")
         Files.writeString(tmp, text, StandardCharsets.UTF_8)
         try {
@@ -22,8 +25,10 @@ object VaultFileIO {
         } catch (e: Exception) {
             Files.move(tmp, p, StandardCopyOption.REPLACE_EXISTING)
         }
-        true
+        null
+    } catch (e: java.nio.file.AccessDeniedException) {
+        "Нет прав на запись в папку ${p.parent}, создайте директорию для сейф-файла"
     } catch (e: Exception) {
-        false
+        "Ошибка записи: ${e.javaClass.simpleName}"
     }
 }

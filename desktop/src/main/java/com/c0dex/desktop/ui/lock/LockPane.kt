@@ -47,7 +47,8 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
                 if (path.isEmpty()) { error = "Выберите файл"; return@Button }
                 if (creating) {
                     if (master != confirm) { error = "Пароли не совпадают"; return@Button }
-                    if (!session.create(Path.of(path), master.toCharArray())) error = "Не удалось записать сейф-файл"
+                    val err = session.create(Path.of(path), master.toCharArray())
+                    if (err != null) error = err
                 } else {
                     error = when (val r = session.unlock(Path.of(path), master.toCharArray())) {
                         is DesktopSession.UnlockResult.Success -> null
@@ -64,7 +65,7 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
         ) { Text(if (creating) "Создать сейф-файл" else "Разблокировать") }
         Spacer(Modifier.height(8.dp))
         TextButton(onClick = { creating = !creating; error = null }) {
-            Text(if (creating) "У меня уже есть сейф-файл" else "Создать новый сейф-файл")
+            Text(if (creating) "У меня уже есть сейф-файл" else "Создать новый сейф")
         }
     }
 }
