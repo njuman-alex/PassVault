@@ -8,14 +8,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.*
 import com.c0dex.core.format.ContainerCodec
 import com.c0dex.core.format.RecordPayload
-import com.c0dex.core.generator.PasswordGenerator
 import com.c0dex.core.util.TimeFormat
-import kotlinx.coroutines.swing.Swing
 import java.nio.file.Path
 import java.util.UUID
 import javax.swing.JFileChooser
@@ -27,11 +26,13 @@ fun main() = application {
     val scope = rememberCoroutineScope()
     val prefs = remember { DesktopPrefs() }
     val session = remember { DesktopSession(scope, prefs) }
+    val clipboard = remember { DesktopClipboard(scope, prefs) }
+    var showSettings by remember { mutableStateOf(false) }
 
     Window(
         onCloseRequest = ::exitApplication,
         title = "PassVault",
-        state = rememberWindowState(size = DpSize(440.dp, 780.dp))
+        state = rememberWindowState(size = DpSize(640.dp, 780.dp))
     ) {
         MaterialTheme(colorScheme = darkColorScheme()) {
             val st by session.state.collectAsState()
@@ -52,7 +53,8 @@ fun main() = application {
             }
             Surface(Modifier.fillMaxSize()) {
                 if (st is DesktopSession.State.Locked) LockPane(session, prefs)
-                else ListPane(session)
+                else if (showSettings) SettingsPane(session, prefs, onBack = { showSettings = false })
+                else ListPane(session, clipboard, onSettings = { showSettings = true })
             }
         }
     }
@@ -122,7 +124,7 @@ private fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
 }
 
 @Composable
-private fun ListPane(session: DesktopSession) {
+private fun ListPane(session: DesktopSession, clipboard: DesktopClipboard, onSettings: () -> Unit) {
     var items by remember { mutableStateOf(listOf<Triple<String, String, Long>>()) }
     var tick by remember { mutableStateOf(0) }
     var query by remember { mutableStateOf("") }
@@ -130,6 +132,7 @@ private fun ListPane(session: DesktopSession) {
     var desc by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var detail by remember { mutableStateOf<String?>(null) }
+    var genTarget by remember { mutableStateOf<((String) -> Unit)?>(null) }
 
     LaunchedEffect(tick) {
         items = session.withDek { dek ->
@@ -142,6 +145,7 @@ private fun ListPane(session: DesktopSession) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("PassVault", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            TextButton(onClick = onSettings) { Text("Настройки") }
             TextButton(onClick = { session.lock() }) { Text("Лок") }
         }
         Spacer(Modifier.height(8.dp))
@@ -172,7 +176,7 @@ private fun ListPane(session: DesktopSession) {
                 OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Описание") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Пароль") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                TextButton(onClick = { pass = PasswordGenerator.generate() }) { Text("🎲 Сгенерировать") }
+                TextButton(onClick = { genTarget = { pass = it } }) { Text("🎲 Генератор…") }
             }
         },
         confirmButton = {
@@ -196,6 +200,7 @@ private fun ListPane(session: DesktopSession) {
         if (rec != null) {
             var d by remember(rec) { mutableStateOf(rec.second.description) }
             var p by remember(rec) { mutableStateOf(rec.second.password) }
+            var revealed by remember(rec) { mutableStateOf(false) }
             AlertDialog(
                 onDismissRequest = { detail = null },
                 title = { Text(d) },
@@ -203,7 +208,16 @@ private fun ListPane(session: DesktopSession) {
                     Column {
                         OutlinedTextField(value = d, onValueChange = { d = it }, label = { Text("Описание") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                         Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(value = p, onValueChange = { p = it }, label = { Text("Пароль") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(
+                            value = p, onValueChange = { p = it }, label = { Text("Пароль") }, singleLine = true,
+                            visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { revealed = !revealed }) { Text(if (revealed) "🙈 Скрыть" else "👁 Показать") }
+                            TextButton(onClick = { clipboard.copy(p) }) { Text("📋 Копировать") }
+                            TextButton(onClick = { genTarget = { p = it } }) { Text("🎲 Генератор…") }
+                        }
                     }
                 },
                 confirmButton = {
@@ -233,5 +247,13 @@ private fun ListPane(session: DesktopSession) {
                 }
             )
         }
+    }
+
+    genTarget?.let { target ->
+        DesktopGenerator(
+            onDismiss = { genTarget = null },
+            onUse = { target(it); genTarget = null },
+            onCopy = { clipboard.copy(it) }
+        )
     }
 }

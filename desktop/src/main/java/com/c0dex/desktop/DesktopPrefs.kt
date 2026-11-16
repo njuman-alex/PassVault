@@ -35,4 +35,8 @@ class DesktopPrefs {
     var lastActiveTs: Long
         get() = props.getProperty("last_active", "0").toLong()
         set(v) { props.setProperty("last_active", v.toString()); save() }
+
+    var clipboardMs: Long
+        get() = props.getProperty("clipboard_ms", "30000").toLong()
+        set(v) { props.setProperty("clipboard_ms", v.toString()); save() }
 }
