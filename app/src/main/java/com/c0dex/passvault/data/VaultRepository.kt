@@ -2,7 +2,6 @@ package com.c0dex.passvault.data
 
 import com.c0dex.core.format.ContainerCodec
 import com.c0dex.core.format.RecordPayload
-import com.c0dex.core.format.VaultContainer
 import com.c0dex.passvault.session.SessionManager
 import java.util.UUID
 

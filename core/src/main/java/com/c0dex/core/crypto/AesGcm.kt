@@ -30,7 +30,20 @@ object AesGcm {
     private val random = SecureRandom()
 
     /** Результат шифрования: IV + шифротекст с тегом. */
-    data class Encrypted(val iv: ByteArray, val ciphertext: ByteArray)
+    data class Encrypted(val iv: ByteArray, val ciphertext: ByteArray) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Encrypted) return false
+            return iv.contentEquals(other.iv) &&
+                    ciphertext.contentEquals(other.ciphertext)
+        }
+
+        override fun hashCode(): Int {
+            var result = iv.contentHashCode()
+            result = 31 * result + ciphertext.contentHashCode()
+            return result
+        }
+    }
 
     /** Шифрование со случайным IV. Основной production-путь. */
     fun encrypt(key: ByteArray, plaintext: ByteArray, aad: ByteArray? = null): Encrypted {

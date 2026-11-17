@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
  * sensitive-флаг (Android 13+) + автоочистка через clipboardTimeoutMs.
  */
 class ClipboardHelper(
-    private val context: Context,
+    context: Context,
     private val prefs: SettingsPrefs,
     private val scope: CoroutineScope
 ) {

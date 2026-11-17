@@ -38,7 +38,24 @@ object Argon2Kdf {
         val iterations: Int = DEFAULT_ITERATIONS,
         val parallelism: Int = DEFAULT_PARALLELISM,
         val salt: ByteArray
-    )
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Params) return false
+            return memoryKiB == other.memoryKiB &&
+                    iterations == other.iterations &&
+                    parallelism == other.parallelism &&
+                    salt.contentEquals(other.salt)
+        }
+
+        override fun hashCode(): Int {
+            var result = memoryKiB
+            result = 31 * result + iterations
+            result = 31 * result + parallelism
+            result = 31 * result + salt.contentHashCode()
+            return result
+        }
+    }
 
     fun newSalt(): ByteArray = ByteArray(SALT_SIZE_BYTES).also(random::nextBytes)
 

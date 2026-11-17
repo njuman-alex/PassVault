@@ -8,12 +8,14 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.*
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -48,7 +50,7 @@ class MainActivity : ComponentActivity() {
 
         val prefs = SettingsPrefs(this)
         val store = VaultFileStore(this)
-        val session = SessionManager(this, store, prefs, lifecycleScope)
+        val session = SessionManager(store, prefs, lifecycleScope)
         val repo = VaultRepository(session)
         val clipboard = ClipboardHelper(this, prefs, lifecycleScope)
 

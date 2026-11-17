@@ -23,7 +23,22 @@ object KeyHierarchy {
     private val random = SecureRandom()
 
     /** Обёртка DEK в заголовке контейнера. */
-    data class Wrap(val type: String, val iv: ByteArray, val ct: ByteArray)
+    data class Wrap(val type: String, val iv: ByteArray, val ct: ByteArray) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Wrap) return false
+            return type == other.type &&
+                    iv.contentEquals(other.iv) &&
+                    ct.contentEquals(other.ct)
+        }
+
+        override fun hashCode(): Int {
+            var result = type.hashCode()
+            result = 31 * result + iv.contentHashCode()
+            result = 31 * result + ct.contentHashCode()
+            return result
+        }
+    }
 
     /** Случайный DEK для нового vault. */
     fun newDek(): ByteArray = ByteArray(DEK_SIZE_BYTES).also(random::nextBytes)
@@ -32,7 +47,7 @@ object KeyHierarchy {
     fun deriveKek(master: CharArray, params: Argon2Kdf.Params): ByteArray =
         Argon2Kdf.derive(master, params)
 
-    /** Оборачивает DEK ключом KEK. type绑定 через AAD. */
+    /** Оборачивает DEK ключом KEK. type привязан через AAD. */
     fun wrapDek(dek: ByteArray, kek: ByteArray, type: String = WRAP_TYPE_MASTER): Wrap {
         require(dek.size == DEK_SIZE_BYTES) { "dek must be $DEK_SIZE_BYTES bytes" }
         require(kek.size == Argon2Kdf.KEY_SIZE_BYTES) { "kek must be ${Argon2Kdf.KEY_SIZE_BYTES} bytes" }

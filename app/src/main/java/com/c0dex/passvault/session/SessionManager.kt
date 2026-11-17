@@ -1,6 +1,5 @@
 package com.c0dex.passvault.session
 
-import android.content.Context
 import android.net.Uri
 import com.c0dex.core.crypto.Argon2Kdf
 import com.c0dex.core.crypto.KeyHierarchy
@@ -28,7 +27,6 @@ import kotlinx.coroutines.launch
  *  - ротация мастера переобёртывает текущий DEK, записи не трогаются.
  */
 class SessionManager(
-    private val context: Context,
     private val store: VaultFileStore,
     private val prefs: SettingsPrefs,
     private val scope: CoroutineScope
