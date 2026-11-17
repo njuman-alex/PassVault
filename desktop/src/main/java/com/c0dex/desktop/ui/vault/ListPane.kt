@@ -3,6 +3,9 @@ package com.c0dex.desktop.ui.vault
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,8 +43,22 @@ fun ListPane(session: DesktopSession, clipboard: DesktopClipboard, onSettings: (
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("PassVault", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            TextButton(onClick = onSettings) { Text("Настройки") }
-            TextButton(onClick = { session.lock() }) { Text("Лок") }
+            //TextButton(onClick = onSettings) { Text("Настройки") }
+            TextButton(onClick = onSettings) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Настройки")
+                }
+            }
+            //TextButton(onClick = { session.lock() }) { Text("Лок") }
+            TextButton(onClick = {session.lock()}) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Лок")
+                }
+            }
         }
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("Поиск") }, singleLine = true, modifier = Modifier.fillMaxWidth())
