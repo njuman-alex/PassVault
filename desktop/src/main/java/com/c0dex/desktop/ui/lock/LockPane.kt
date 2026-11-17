@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,15 +26,21 @@ import androidx.compose.ui.unit.dp
 import com.c0dex.desktop.data.DesktopPrefs
 import com.c0dex.desktop.session.DesktopSession
 import com.c0dex.desktop.ui.chooseFile
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.nio.file.Files
 import java.nio.file.Path
 
 @Composable
 fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
+    val scope = rememberCoroutineScope()
     var master by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var creating by remember { mutableStateOf(prefs.vaultPath == null) }
     var path by remember { mutableStateOf(prefs.vaultPath ?: "") }
+    var busy by remember { mutableStateOf(false) }
 
     val fileName = path.takeIf { it.isNotEmpty() }
         ?.let { runCatching { Path.of(it).fileName.toString() }.getOrDefault(it) }
@@ -54,9 +61,11 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
         Spacer(Modifier.height(16.dp))
 
         if (showChooser) {
-            OutlinedButton(onClick = { chooseFile(save = creating)?.let { path = it.toString() } }, modifier = Modifier.fillMaxWidth()) {
-                Text(if (creating) "Выбрать папку и имя…" else "Выбрать файл…")
-            }
+            OutlinedButton(
+                onClick = { chooseFile(save = creating)?.let { path = it.toString() } },
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text(if (creating) "Выбрать папку и имя…" else "Выбрать файл…") }
             if (creating && path.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 Text(path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -64,10 +73,18 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
             Spacer(Modifier.height(16.dp))
         }
 
-        OutlinedTextField(value = master, onValueChange = { master = it; error = null }, label = { Text("Мастер-пароль") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = master, onValueChange = { master = it; error = null },
+            label = { Text("Мастер-пароль") }, visualTransformation = PasswordVisualTransformation(),
+            singleLine = true, enabled = !busy, modifier = Modifier.fillMaxWidth()
+        )
         if (creating) {
             Spacer(Modifier.height(8.dp))
-            OutlinedTextField(value = confirm, onValueChange = { confirm = it; error = null }, label = { Text("Повторите") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(
+                value = confirm, onValueChange = { confirm = it; error = null },
+                label = { Text("Повторите") }, visualTransformation = PasswordVisualTransformation(),
+                singleLine = true, enabled = !busy, modifier = Modifier.fillMaxWidth()
+            )
         }
         Spacer(Modifier.height(16.dp))
         if (error != null) { Text(error!!, color = MaterialTheme.colorScheme.error); Spacer(Modifier.height(8.dp)) }
@@ -75,26 +92,46 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
         Button(
             onClick = {
                 if (path.isEmpty()) { error = "Выберите файл"; return@Button }
+                if (busy) return@Button
+                val p = Path.of(path)
                 if (creating) {
                     if (master != confirm) { error = "Пароли не совпадают"; return@Button }
-                    val err = session.create(Path.of(path), master.toCharArray())
-                    if (err != null) error = err
+                    if (Files.exists(p)) { error = "Файл уже существует — выберите другое имя (create не перезаписывает сейф)"; return@Button }
+                    val m = master.toCharArray()
+                    scope.launch {
+                        busy = true
+                        val err = withContext(Dispatchers.Default) { session.create(p, m) }
+                        busy = false
+                        master = ""; confirm = ""
+                        if (err != null) error = err
+                    }
                 } else {
-                    error = when (val r = session.unlock(Path.of(path), master.toCharArray())) {
-                        is DesktopSession.UnlockResult.Success -> null
-                        is DesktopSession.UnlockResult.WrongMaster -> "Неверный мастер-пароль"
-                        is DesktopSession.UnlockResult.CorruptFile -> "Файл повреждён или не .qdex"
-                        is DesktopSession.UnlockResult.IoError -> "Не удалось прочитать файл"
-                        is DesktopSession.UnlockResult.Delayed -> "Подождите ${r.remainingMs / 1000 + 1} с"
+                    val m = master.toCharArray()
+                    scope.launch {
+                        busy = true
+                        val r = withContext(Dispatchers.Default) { session.unlock(p, m) }
+                        busy = false
+                        master = ""; confirm = ""
+                        error = when (r) {
+                            is DesktopSession.UnlockResult.Success -> null
+                            is DesktopSession.UnlockResult.WrongMaster -> "Неверный мастер-пароль"
+                            is DesktopSession.UnlockResult.CorruptFile -> "Файл повреждён или не .qdex"
+                            is DesktopSession.UnlockResult.IoError -> "Не удалось прочитать файл"
+                            is DesktopSession.UnlockResult.Delayed -> "Подождите ${r.remainingMs / 1000 + 1} с"
+                        }
                     }
                 }
-                master = ""; confirm = ""
             },
-            enabled = master.isNotEmpty() && (!creating || confirm.isNotEmpty()),
+            enabled = !busy && master.isNotEmpty() && (!creating || confirm.isNotEmpty()),
             modifier = Modifier.fillMaxWidth()
-        ) { Text(if (creating) "Создать сейф-файл" else "Разблокировать") }
+        ) {
+            Text(
+                if (busy) (if (creating) "Создаём сейф…" else "Проверяем пароль…")
+                else (if (creating) "Создать сейф-файл" else "Разблокировать")
+            )
+        }
         Spacer(Modifier.height(8.dp))
-        TextButton(onClick = { creating = !creating; error = null }) {
+        TextButton(onClick = { creating = !creating; error = null }, enabled = !busy) {
             Text(if (creating) "У меня уже есть сейф-файл" else "Создать новый сейф")
         }
     }
