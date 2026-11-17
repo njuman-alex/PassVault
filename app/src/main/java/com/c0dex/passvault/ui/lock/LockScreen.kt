@@ -16,6 +16,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.documentfile.provider.DocumentFile
+import com.c0dex.core.format.VaultFiles
 import com.c0dex.passvault.data.SettingsPrefs
 import com.c0dex.passvault.data.VaultFileStore
 import com.c0dex.passvault.session.SessionManager
@@ -169,7 +170,7 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
             error = when (result) {
                 is SessionManager.UnlockResult.Success -> null
                 is SessionManager.UnlockResult.WrongMaster -> "Неверный мастер-пароль"
-                is SessionManager.UnlockResult.CorruptFile -> "Файл повреждён или не PMV3"
+                is SessionManager.UnlockResult.CorruptFile -> "Файл повреждён или не .qdex"
                 is SessionManager.UnlockResult.IoError -> "Не удалось прочитать файл"
                 is SessionManager.UnlockResult.Delayed ->
                     "Слишком много попыток. Подождите ${result.remainingMs / 1000 + 1} с"
@@ -179,7 +180,7 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
             val tree = pendingTree
             if (tree == null) { error = "Сначала выберите папку"; return@LockScreenContent }
             if (master != confirm) { error = "Пароли не совпадают"; return@LockScreenContent }
-            val uri = store.createInTree(tree, "vault.pmv3")
+            val uri = store.createInTree(tree, VaultFiles.DEFAULT_NAME)
             if (uri == null) { error = "Не удалось создать файл"; return@LockScreenContent }
             persist(context, uri)
             val ok = session.create(uri, master.toCharArray())
@@ -205,7 +206,7 @@ private fun persist(context: android.content.Context, uri: Uri) {
 @Composable
 private fun LockPreviewUnlock() = PassVaultTheme {
     LockScreenContent(
-        state = LockUiState(creating = false, fileName = "vault.pmv3", hasVaultFile = true),
+        state = LockUiState(creating = false, fileName = "vault.qdex", hasVaultFile = true),
         onMasterChange = {}, onConfirmChange = {}, onPickFile = {}, onPickTree = {},
         onUnlock = {}, onCreate = {}, onToggleMode = {}
     )
@@ -225,7 +226,7 @@ private fun LockPreviewCreate() = PassVaultTheme {
 @Composable
 private fun LockPreviewError() = PassVaultTheme {
     LockScreenContent(
-        state = LockUiState(creating = false, fileName = "vault.pmv3", hasVaultFile = true, error = "Неверный мастер-пароль"),
+        state = LockUiState(creating = false, fileName = "vault.qdex", hasVaultFile = true, error = "Неверный мастер-пароль"),
         onMasterChange = {}, onConfirmChange = {}, onPickFile = {}, onPickTree = {},
         onUnlock = {}, onCreate = {}, onToggleMode = {}
     )

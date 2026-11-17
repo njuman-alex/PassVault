@@ -85,7 +85,7 @@ fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Uni
                 val other = try {
                     ContainerCodec.parse(VaultFileIO.read(fc.selectedFile.toPath()) ?: error("read"))
                 } catch (e: Exception) {
-                    mergeMsg = "Копия повреждена или не PMV3"; return@OutlinedButton
+                    mergeMsg = "Копия повреждена или не .qdex"; return@OutlinedButton
                 }
                 val merged = session.withDek { dek ->
                     val base = session.currentContainer() ?: return@withDek null

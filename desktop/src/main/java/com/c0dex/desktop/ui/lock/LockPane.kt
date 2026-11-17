@@ -68,7 +68,7 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
                     error = when (val r = session.unlock(Path.of(path), master.toCharArray())) {
                         is DesktopSession.UnlockResult.Success -> null
                         is DesktopSession.UnlockResult.WrongMaster -> "Неверный мастер-пароль"
-                        is DesktopSession.UnlockResult.CorruptFile -> "Файл повреждён или не PMV3"
+                        is DesktopSession.UnlockResult.CorruptFile -> "Файл повреждён или не .qdex"
                         is DesktopSession.UnlockResult.IoError -> "Не удалось прочитать файл"
                         is DesktopSession.UnlockResult.Delayed -> "Подождите ${r.remainingMs / 1000 + 1} с"
                     }

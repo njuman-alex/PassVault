@@ -1,11 +1,12 @@
 package com.c0dex.desktop.ui
 
+import com.c0dex.core.format.VaultFiles
 import java.nio.file.Path
 import javax.swing.JFileChooser
 
-const val VAULT_EXT = "pmv3"
+const val VAULT_EXT = VaultFiles.EXT
 
-/** Выбор файла: save-режим дописывает .pmv3, если расширения нет (как createInTree на Android). */
+/** Выбор файла: save-режим дописывает .qdex, если расширения нет (как createInTree на Android). */
 fun chooseFile(save: Boolean): Path? {
     val fc = JFileChooser()
     val ok = if (save) fc.showSaveDialog(null) else fc.showOpenDialog(null)

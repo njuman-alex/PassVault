@@ -121,7 +121,7 @@ fun SettingsScreen(
                 SyncHelper.Result.Ok -> "Слито успешно ✓"
                 SyncHelper.Result.Locked -> "Сначала разблокируйте vault"
                 SyncHelper.Result.ReadFail -> "Не удалось прочитать копию"
-                SyncHelper.Result.ParseFail -> "Копия повреждена или не PMV3"
+                SyncHelper.Result.ParseFail -> "Копия повреждена или не .qdex"
                 SyncHelper.Result.WriteFail -> "Не удалось записать результат"
             }
         }
@@ -176,5 +176,5 @@ fun SettingsScreen(
 @Preview(showBackground = true, name = "Settings")
 @Composable
 private fun SettingsPreview() = PassVaultTheme {
-    SettingsContent(SettingsUiState(vaultName = "vault.pmv3"), {}, {}, {}, {}, {}, {}, {})
+    SettingsContent(SettingsUiState(vaultName = "vault.qdex"), {}, {}, {}, {}, {}, {}, {})
 }

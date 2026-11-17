@@ -6,6 +6,7 @@ import com.c0dex.core.format.ContainerCodec
 import com.c0dex.core.format.KdfConfig
 import com.c0dex.core.format.RecordPayload
 import com.c0dex.core.format.VaultContainer
+import com.c0dex.core.format.VaultFiles
 import com.c0dex.core.generator.PasswordGenerator
 import com.c0dex.core.merge.VaultMerger
 import com.c0dex.core.util.TimeFormat
@@ -41,7 +42,7 @@ private fun load(file: Path, master: CharArray): VaultContainer? {
     val c = try {
         ContainerCodec.parse(Files.readString(file, StandardCharsets.UTF_8))
     } catch (e: Exception) {
-        println("Файл повреждён или не PMV3: ${e.message}"); return null
+        println("Файл повреждён или не .qdex: ${e.message}"); return null
     }
     val wrap = c.wraps.firstOrNull { it.type == KeyHierarchy.WRAP_TYPE_MASTER }
     if (wrap == null) { println("Нет master-обёртки"); return null }
@@ -54,7 +55,7 @@ private fun load(file: Path, master: CharArray): VaultContainer? {
 
 private fun save(file: Path, c: VaultContainer) {
     try {
-        val tmp = Files.createTempFile(file.parent, ".pmv3-", ".tmp")
+        val tmp = Files.createTempFile(file.parent, VaultFiles.TEMP_PREFIX, ".tmp")
         Files.writeString(tmp, ContainerCodec.serialize(c), StandardCharsets.UTF_8)
         try {
             Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
@@ -106,7 +107,7 @@ fun main(args: Array<String>) {
             val c = try {
                 ContainerCodec.parse(Files.readString(file, StandardCharsets.UTF_8))
             } catch (e: Exception) {
-                println("Файл повреждён или не PMV3"); m.fill('\u0000'); return
+                println("Файл повреждён или не .qdex"); m.fill('\u0000'); return
             }
             val dek = dekOf(c, m)
             m.fill('\u0000')
@@ -147,7 +148,7 @@ fun main(args: Array<String>) {
                     val other = try {
                         ContainerCodec.parse(Files.readString(Path.of(args[2]), StandardCharsets.UTF_8))
                     } catch (e: Exception) {
-                        println("Копия повреждена или не PMV3"); return
+                        println("Копия повреждена или не .qdex"); return
                     }
                     save(file, VaultMerger.merge(dek, c, other))
                     println("Слито: ${args[2]} -> $file")

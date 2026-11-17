@@ -1,5 +1,6 @@
 package com.c0dex.desktop.io
 
+import com.c0dex.core.format.VaultFiles
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
@@ -18,7 +19,7 @@ object VaultFileIO {
 
     /** null = успех, иначе человекочитаемая причина. */
     fun writeAtomicMsg(p: Path, text: String): String? = try {
-        val tmp = Files.createTempFile(p.parent ?: Path.of("."), ".pmv3-", ".tmp")
+        val tmp = Files.createTempFile(p.parent ?: Path.of("."), VaultFiles.TEMP_PREFIX, ".tmp")
         Files.writeString(tmp, text, StandardCharsets.UTF_8)
         try {
             Files.move(tmp, p, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
