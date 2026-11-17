@@ -4,15 +4,19 @@ import com.c0dex.desktop.session.DesktopSession
 import com.c0dex.desktop.data.DesktopPrefs
 import com.c0dex.desktop.io.VaultFileIO
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.c0dex.core.format.ContainerCodec
 import com.c0dex.core.merge.VaultMerger
+import com.c0dex.core.util.TimeFormat
 import java.nio.file.Path
 import javax.swing.JFileChooser
 
@@ -38,10 +42,10 @@ fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Uni
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Row {
-            TextButton(onClick = onBack) { Text("← Назад") }
+            //TextButton(onClick = onBack) { Text("← Назад") }
             Text("Настройки", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
         }
 
@@ -95,6 +99,12 @@ fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Uni
             }
         }) { Text("Слить конфликт-копию…") }
         if (mergeMsg != null) Text(mergeMsg!!, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        Spacer(Modifier.height(8.dp))
+        Row {
+            //Button(onClick = onBack) { Text("← Назад") }
+            Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
+        }
     }
 
     if (showMaster) AlertDialog(

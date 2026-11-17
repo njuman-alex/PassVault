@@ -29,7 +29,7 @@ fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         title = "PassVault",
-        state = rememberWindowState(size = DpSize(640.dp, 780.dp))
+        state = rememberWindowState(size = DpSize(500.dp, 900.dp))
     ) {
         MaterialTheme(colorScheme = darkColorScheme()) {
             val st by session.state.collectAsState()
