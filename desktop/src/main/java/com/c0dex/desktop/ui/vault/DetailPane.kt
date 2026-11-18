@@ -25,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.c0dex.desktop.data.DesktopRepository
 import com.c0dex.desktop.session.DesktopClipboard
@@ -49,14 +48,7 @@ fun DetailPane(
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            //TextButton(onClick = onBack) { Text("← Назад") }
-            Text(
-                //if (record == null) "Запись" else desc,
-                if (record == null) "" else "",
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
-            )
+            Spacer(Modifier.weight(1f))
             if (record != null) {
                 TextButton(onClick = {
                     if (editing) { desc = record?.description ?: ""; pass = record?.password ?: "" }
@@ -68,40 +60,39 @@ fun DetailPane(
         Spacer(Modifier.height(16.dp))
 
         if (record == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Запись не найдена") }
-            return@Column
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(
-                value = desc, onValueChange = { desc = it }, label = { Text("Описание") },
-                readOnly = !editing, singleLine = true, modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = pass, onValueChange = { pass = it }, label = { Text("Пароль") },
-                readOnly = !editing, singleLine = true,
-                visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { revealed = !revealed }) { Text(if (revealed) "🙈 Скрыть" else "👁 Показать") }
-                OutlinedButton(onClick = { clipboard.copy(pass) }) { Text("📋 Копировать") }
+            Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                Text("Запись не найдена")
             }
-            if (editing) {
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = desc, onValueChange = { desc = it }, label = { Text("Описание") },
+                    readOnly = !editing, singleLine = true, modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = pass, onValueChange = { pass = it }, label = { Text("Пароль") },
+                    readOnly = !editing, singleLine = true,
+                    visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { showGen = true }) { Text("🎲 Генератор…") }
-                    Button(
-                        onClick = { if (repo.update(id, desc, pass)) { record = repo.get(id); editing = false } },
-                        enabled = desc.isNotEmpty() && pass.isNotEmpty()
-                    ) { Text("Сохранить") }
+                    OutlinedButton(onClick = { revealed = !revealed }) { Text(if (revealed) "🙈 Скрыть" else "👁 Показать") }
+                    OutlinedButton(onClick = { clipboard.copy(pass) }) { Text("📋 Копировать") }
+                }
+                if (editing) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { showGen = true }) { Text("🎲 Генератор…") }
+                        Button(
+                            onClick = { if (repo.update(id, desc, pass)) { record = repo.get(id); editing = false } },
+                            enabled = desc.isNotEmpty() && pass.isNotEmpty()
+                        ) { Text("Сохранить") }
+                    }
                 }
             }
         }
+
         Spacer(Modifier.height(8.dp))
-
-            //Button(onClick = onBack) { Text("← Назад") }
-            Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
-
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
     }
 
     if (confirmDelete) AlertDialog(
