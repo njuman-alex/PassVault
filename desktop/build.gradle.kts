@@ -26,11 +26,20 @@ compose.desktop {
         mainClass = "com.c0dex.desktop.MainKt"
         nativeDistributions {
             targetFormats(
-                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe,
-                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe
             )
             packageName = "PassVault"
             packageVersion = "1.0.0"
+            description = "PassVault — офлайн-менеджер паролей (формат PMV3)"
+            vendor = "c0dex"
+            copyright = "© 2026 c0dex"
+            windows {
+                // iconFile.set(file("icons/passvault.ico"))  // раскомментируй, когда положишь .ico
+                upgradeUuid = "b7f3a2c1-4d5e-4f6a-9b8c-1d2e3f4a5b6c"  // НЕ менять между версиями
+                menuGroup = "PassVault"
+                shortcut = true
+                perUserInstall = true   // без админ-прав, в папку пользователя
+            }
         }
     }
 }
