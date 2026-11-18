@@ -41,7 +41,7 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
     fun unlock(path: Path, master: CharArray): UnlockResult {
         val now = System.currentTimeMillis()
         val until = prefs.failUntilTs
-        if (now < until) return UnlockResult.Delayed(until - now)
+        if (now < until) { master.fill('\u0000'); return UnlockResult.Delayed(until - now)}
         try {
             val text = VaultFileIO.read(path) ?: return UnlockResult.IoError
             val c = try { ContainerCodec.parse(text) } catch (e: Exception) { return UnlockResult.CorruptFile }

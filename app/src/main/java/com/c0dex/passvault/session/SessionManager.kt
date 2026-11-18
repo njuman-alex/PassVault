@@ -65,7 +65,7 @@ class SessionManager(
     fun unlock(uri: Uri, master: CharArray): UnlockResult {
         val now = System.currentTimeMillis()
         val until = prefs.failUntilTs
-        if (now < until) return UnlockResult.Delayed(until - now)
+        if (now < until) { master.fill('\u0000'); return UnlockResult.Delayed(until - now)}
         try {
             val text = store.read(uri) ?: return UnlockResult.IoError
             val c = try {
