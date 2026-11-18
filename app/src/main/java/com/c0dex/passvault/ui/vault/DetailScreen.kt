@@ -63,7 +63,8 @@ fun DetailContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (state.missing) "Запись" else state.description) },
+                //title = { Text(if (state.missing) "Запись" else state.description) },
+                title = { Text("") },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") } },
                 actions = {
                     if (!state.missing) {

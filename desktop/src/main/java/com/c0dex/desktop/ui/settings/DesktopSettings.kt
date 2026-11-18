@@ -114,10 +114,10 @@ fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Uni
         if (mergeMsg != null) Text(mergeMsg!!, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         Spacer(Modifier.height(8.dp))
-        Row {
+
             //Button(onClick = onBack) { Text("← Назад") }
             Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
-        }
+
     }
 
     if (showMaster) AlertDialog(

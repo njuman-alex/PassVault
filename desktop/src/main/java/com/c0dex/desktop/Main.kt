@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,10 +19,12 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.c0dex.desktop.data.DesktopPrefs
+import com.c0dex.desktop.data.DesktopRepository
 import com.c0dex.desktop.session.DesktopClipboard
 import com.c0dex.desktop.session.DesktopSession
 import com.c0dex.desktop.ui.lock.LockPane
 import com.c0dex.desktop.ui.settings.SettingsPane
+import com.c0dex.desktop.ui.vault.DetailPane
 import com.c0dex.desktop.ui.vault.ListPane
 import java.awt.KeyboardFocusManager
 import java.awt.Window
@@ -31,8 +34,10 @@ fun main() = application {
     val scope = rememberCoroutineScope()
     val prefs = remember { DesktopPrefs() }
     val session = remember { DesktopSession(scope, prefs) }
+    val repo = remember { DesktopRepository(session) }
     val clipboard = remember { DesktopClipboard(scope, prefs) }
     var showSettings by remember { mutableStateOf(false) }
+    var detailId by remember { mutableStateOf<String?>(null) }
 
     Window(
         onCloseRequest = ::exitApplication,
@@ -41,6 +46,12 @@ fun main() = application {
     ) {
         MaterialTheme(colorScheme = darkColorScheme()) {
             val st by session.state.collectAsState()
+
+            // автолок/лок из любой точки — сбрасываем навигацию, чтобы после разлока не висела старая деталь
+            LaunchedEffect(st) {
+                if (st is DesktopSession.State.Locked) { detailId = null; showSettings = false }
+            }
+
             DisposableEffect(Unit) {
                 val kfm = KeyboardFocusManager.getCurrentKeyboardFocusManager()
                 var wasOurs = true
@@ -57,9 +68,13 @@ fun main() = application {
                 onDispose { kfm.removePropertyChangeListener(listener) }
             }
             Surface(Modifier.fillMaxSize()) {
-                if (st is DesktopSession.State.Locked) LockPane(session, prefs)
-                else if (showSettings) SettingsPane(session, prefs, onBack = { showSettings = false })
-                else ListPane(session, clipboard, onSettings = { showSettings = true })
+                val openId = detailId
+                when {
+                    st is DesktopSession.State.Locked -> LockPane(session, prefs)
+                    openId != null -> DetailPane(openId, repo, clipboard, onBack = { detailId = null })
+                    showSettings -> SettingsPane(session, prefs, onBack = { showSettings = false })
+                    else -> ListPane(session, repo, clipboard, onOpen = { detailId = it }, onSettings = { showSettings = true })
+                }
             }
         }
     }
