@@ -59,33 +59,36 @@ fun DetailPane(
         }
         Spacer(Modifier.height(16.dp))
 
-        if (record == null) {
-            Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
-                Text("Запись не найдена")
-            }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = desc, onValueChange = { desc = it }, label = { Text("Описание") },
-                    readOnly = !editing, singleLine = true, modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = pass, onValueChange = { pass = it }, label = { Text("Пароль") },
-                    readOnly = !editing, singleLine = true,
-                    visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { revealed = !revealed }) { Text(if (revealed) "🙈 Скрыть" else "👁 Показать") }
-                    OutlinedButton(onClick = { clipboard.copy(pass) }) { Text("📋 Копировать") }
+        // контент занимает всё свободное место → «Назад» прижата к низу (как «Добавить» в списке)
+        Column(Modifier.weight(1f)) {
+            if (record == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Запись не найдена")
                 }
-                if (editing) {
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = desc, onValueChange = { desc = it }, label = { Text("Описание") },
+                        readOnly = !editing, singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = pass, onValueChange = { pass = it }, label = { Text("Пароль") },
+                        readOnly = !editing, singleLine = true,
+                        visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { showGen = true }) { Text("🎲 Генератор…") }
-                        Button(
-                            onClick = { if (repo.update(id, desc, pass)) { record = repo.get(id); editing = false } },
-                            enabled = desc.isNotEmpty() && pass.isNotEmpty()
-                        ) { Text("Сохранить") }
+                        OutlinedButton(onClick = { revealed = !revealed }) { Text(if (revealed) "🙈 Скрыть" else "👁 Показать") }
+                        OutlinedButton(onClick = { clipboard.copy(pass) }) { Text("📋 Копировать") }
+                    }
+                    if (editing) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { showGen = true }) { Text("🎲 Генератор…") }
+                            Button(
+                                onClick = { if (repo.update(id, desc, pass)) { record = repo.get(id); editing = false } },
+                                enabled = desc.isNotEmpty() && pass.isNotEmpty()
+                            ) { Text("Сохранить") }
+                        }
                     }
                 }
             }

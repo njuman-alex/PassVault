@@ -29,6 +29,8 @@ import com.c0dex.desktop.ui.vault.ListPane
 import java.awt.KeyboardFocusManager
 import java.awt.Window
 import java.beans.PropertyChangeListener
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.window.WindowPosition
 
 fun main() = application {
     val scope = rememberCoroutineScope()
@@ -42,7 +44,10 @@ fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         title = "PassVault",
-        state = rememberWindowState(size = DpSize(500.dp, 900.dp))
+        state = rememberWindowState(
+            size = DpSize(500.dp, 900.dp),
+            position = WindowPosition.Aligned(Alignment.Center)
+        )
     ) {
         MaterialTheme(colorScheme = darkColorScheme()) {
             val st by session.state.collectAsState()
