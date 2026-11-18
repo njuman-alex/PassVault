@@ -77,8 +77,8 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
             val err = VaultFileIO.writeAtomicMsg(path, ContainerCodec.serialize(c))
             if (err != null) return err
             dek = d; container = c
-            prefs.vaultPath = path.toString();
-            prefs.failUntilTs = 0;
+            prefs.vaultPath = path.toString()
+            prefs.failUntilTs = 0
             prefs.failCount = 0
             _state.value = State.Unlocked
             touch(); startIdle()
