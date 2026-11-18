@@ -53,7 +53,6 @@ class SessionManager(
     private var container: VaultContainer? = null
     private var idleJob: Job? = null
     private var backgroundTs = 0L
-    private var failUntil = 0L
     private var externalActivity = false
 
     /** Доступ к DEK только в UNLOCKED; вызывающий не сохраняет и не затирает массив. */
@@ -65,7 +64,8 @@ class SessionManager(
 
     fun unlock(uri: Uri, master: CharArray): UnlockResult {
         val now = System.currentTimeMillis()
-        if (now < failUntil) return UnlockResult.Delayed(failUntil - now)
+        val until = prefs.failUntilTs
+        if (now < until) return UnlockResult.Delayed(until - now)
         try {
             val text = store.read(uri) ?: return UnlockResult.IoError
             val c = try {
@@ -80,12 +80,13 @@ class SessionManager(
             kek.fill(0)
             if (d == null) {
                 prefs.failCount = prefs.failCount + 1
-                failUntil = System.currentTimeMillis() + delayFor(prefs.failCount)
+                prefs.failUntilTs = System.currentTimeMillis() + delayFor(prefs.failCount)
                 return UnlockResult.WrongMaster
             }
             dek = d
             container = c
             prefs.failCount = 0
+            prefs.failUntilTs = 0
             prefs.vaultUri = uri.toString()
             _state.value = State.Unlocked   // состояние ДО запуска тикера
             touch()
@@ -114,6 +115,7 @@ class SessionManager(
             container = c
             prefs.vaultUri = uri.toString()
             prefs.failCount = 0
+            prefs.failUntilTs = 0
             _state.value = State.Unlocked   // состояние ДО запуска тикера
             touch()
             startIdle()

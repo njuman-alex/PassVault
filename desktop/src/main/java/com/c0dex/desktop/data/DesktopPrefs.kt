@@ -31,6 +31,10 @@ class DesktopPrefs {
         get() = props.getProperty("fail_count", "0").toInt()
         set(v) { props.setProperty("fail_count", v.toString()); save() }
 
+    var failUntilTs: Long
+        get() = props.getProperty("fail_until", "0").toLong()
+        set(v) { props.setProperty("fail_until", v.toString()); save() }
+
     var lastActiveTs: Long
         get() = props.getProperty("last_active", "0").toLong()
         set(v) { props.setProperty("last_active", v.toString()); save() }

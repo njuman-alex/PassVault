@@ -30,6 +30,10 @@ class SettingsPrefs(context: Context) {
         get() = prefs.getInt(KEY_FAIL, 0)
         set(v) = prefs.edit().putInt(KEY_FAIL, v).apply()
 
+    var failUntilTs: Long
+        get() = prefs.getLong(KEY_FAIL_UNTIL, 0L)
+        set(v) = prefs.edit().putLong(KEY_FAIL_UNTIL, v).apply()
+
     var lastActiveTs: Long
         get() = prefs.getLong(KEY_LAST_ACTIVE, 0L)
         set(v) = prefs.edit().putLong(KEY_LAST_ACTIVE, v).apply()
@@ -44,6 +48,7 @@ class SettingsPrefs(context: Context) {
         private const val KEY_CLIPBOARD = "clipboard_timeout_ms"
         private const val KEY_GRACE = "background_grace_ms"
         private const val KEY_FAIL = "fail_count"
+        private const val KEY_FAIL_UNTIL = "fail_until_ts"
         private const val KEY_LAST_ACTIVE = "last_active_ts"
     }
 }

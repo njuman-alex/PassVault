@@ -34,14 +34,14 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
     private var container: VaultContainer? = null
     private var idleJob: Job? = null
     private var backgroundTs = 0L
-    private var failUntil = 0L
 
     fun <T> withDek(block: (ByteArray) -> T): T? = dek?.let(block)
     fun currentContainer(): VaultContainer? = container
 
     fun unlock(path: Path, master: CharArray): UnlockResult {
         val now = System.currentTimeMillis()
-        if (now < failUntil) return UnlockResult.Delayed(failUntil - now)
+        val until = prefs.failUntilTs
+        if (now < until) return UnlockResult.Delayed(until - now)
         try {
             val text = VaultFileIO.read(path) ?: return UnlockResult.IoError
             val c = try { ContainerCodec.parse(text) } catch (e: Exception) { return UnlockResult.CorruptFile }
@@ -51,11 +51,13 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
             kek.fill(0)
             if (d == null) {
                 prefs.failCount = prefs.failCount + 1
-                failUntil = System.currentTimeMillis() + delayFor(prefs.failCount)
+                prefs.failUntilTs = System.currentTimeMillis() + delayFor(prefs.failCount)
                 return UnlockResult.WrongMaster
             }
             dek = d; container = c
-            prefs.failCount = 0; prefs.vaultPath = path.toString()
+            prefs.failCount = 0;
+            prefs.failUntilTs = 0;
+            prefs.vaultPath = path.toString()
             _state.value = State.Unlocked
             touch(); startIdle()
             return UnlockResult.Success
@@ -75,7 +77,9 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
             val err = VaultFileIO.writeAtomicMsg(path, ContainerCodec.serialize(c))
             if (err != null) return err
             dek = d; container = c
-            prefs.vaultPath = path.toString(); prefs.failCount = 0
+            prefs.vaultPath = path.toString();
+            prefs.failUntilTs = 0;
+            prefs.failCount = 0
             _state.value = State.Unlocked
             touch(); startIdle()
             return null
