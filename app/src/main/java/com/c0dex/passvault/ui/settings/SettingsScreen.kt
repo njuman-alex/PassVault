@@ -36,9 +36,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.documentfile.provider.DocumentFile
 import com.c0dex.passvault.data.SettingsPrefs
 import com.c0dex.passvault.data.SyncHelper
 import com.c0dex.passvault.data.VaultFileStore
@@ -149,13 +151,18 @@ fun SettingsScreen(
             }
         }
     }
+    val context = LocalContext.current
 
     SettingsContent(
         state = SettingsUiState(
             idleMinutes = idleMin,
             clipboardSeconds = clipSec,
             graceSeconds = graceSec,
-            vaultName = prefs.vaultUri?.let { Uri.parse(it).lastPathSegment },
+            //vaultName = prefs.vaultUri?.let { Uri.parse(it).lastPathSegment },
+            vaultName = prefs.vaultUri?.let { s ->
+                val u = Uri.parse(s)
+                DocumentFile.fromSingleUri(context, u)?.name ?: u.lastPathSegment
+            },
             mergeMsg = mergeMsg
         ),
         onIdle = { idleMin = it; prefs.idleTimeoutMs = it * 60_000L },
