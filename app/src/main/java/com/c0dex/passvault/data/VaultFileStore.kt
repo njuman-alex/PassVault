@@ -2,7 +2,8 @@ package com.c0dex.passvault.data
 
 import android.content.Context
 import android.net.Uri
-import androidx.documentfile.provider.DocumentFile
+// D-014: убрать (createInTree удалена, DocumentFile больше не нужен)
+//import androidx.documentfile.provider.DocumentFile
 
 /**
  * Файловый доступ к vault через SAF.
@@ -10,6 +11,9 @@ import androidx.documentfile.provider.DocumentFile
  * D-011: запись = прямая truncate-запись по стабильному Uri.
  * Атомарный rename через SAF отклонён: он меняет document-id и ломает
  * сохранённую ссылку. Восстановление при краше = версии файла в облаке.
+ *
+ * D-014: создание сейфа перенесено в UI через CreateDocument (системный
+ * диалог «папка + имя»); метод createInTree удалён как неиспользуемый.
  */
 class VaultFileStore(private val context: Context) {
 
@@ -29,10 +33,11 @@ class VaultFileStore(private val context: Context) {
         false
     }
 
-    fun createInTree(treeUri: Uri, name: String): Uri? = try {
-        val tree = DocumentFile.fromTreeUri(context, treeUri) ?: return null
-        tree.createFile("application/octet-stream", name)?.uri
-    } catch (e: Exception) {
-        null
-    }
+    // D-014: убрать (заменено на CreateDocument в UI)
+//    fun createInTree(treeUri: Uri, name: String): Uri? = try {
+//        val tree = DocumentFile.fromTreeUri(context, treeUri) ?: return null
+//        tree.createFile("application/octet-stream", name)?.uri
+//    } catch (e: Exception) {
+//        null
+//    }
 }

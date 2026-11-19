@@ -50,7 +50,8 @@ data class LockUiState(
     val confirm: String = "",
     val error: String? = null,
     val hasVaultFile: Boolean = false,
-    val treeChosen: Boolean = false,
+    // D-014: убрать
+    //val treeChosen: Boolean = false,
     val busy: Boolean = false
 )
 
@@ -61,7 +62,8 @@ fun LockScreenContent(
     onMasterChange: (String) -> Unit,
     onConfirmChange: (String) -> Unit,
     onPickFile: () -> Unit,
-    onPickTree: () -> Unit,
+    // D-014: убрать
+    //onPickTree: () -> Unit,
     onUnlock: () -> Unit,
     onCreate: () -> Unit,
     onToggleMode: () -> Unit
@@ -121,12 +123,12 @@ fun LockScreenContent(
             }
 
             if (state.creating) {
-                OutlinedButton(
-                    onClick = onPickTree,
-                    enabled = !state.busy,
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(if (state.treeChosen) "Папка выбрана ✓" else "Выбрать папку для сохранения") }
-                Spacer(Modifier.height(8.dp))
+//                OutlinedButton(
+//                    onClick = onPickTree,
+//                    enabled = !state.busy,
+//                    modifier = Modifier.fillMaxWidth()
+//                ) { Text(if (state.treeChosen) "Папка выбрана ✓" else "Выбрать папку для сохранения") }
+//                Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = onCreate,
                     enabled = !state.busy && state.master.isNotEmpty() && state.confirm.isNotEmpty(),
@@ -166,14 +168,34 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
     var error by remember { mutableStateOf<String?>(null) }
     var creating by remember { mutableStateOf(prefs.vaultUri == null) }
     var vaultUri by remember { mutableStateOf(prefs.vaultUri?.let(Uri::parse)) }
-    var pendingTree by remember { mutableStateOf<Uri?>(null) }
+    //var pendingTree by remember { mutableStateOf<Uri?>(null) }
     var busy by remember { mutableStateOf(false) }
 
     val openDoc = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { persist(context, it); vaultUri = it; prefs.vaultUri = it.toString(); error = null }
     }
-    val openTree = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
-        tree?.let { persist(context, it); pendingTree = it; error = null }
+//    val openTree = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+//        tree?.let { persist(context, it); pendingTree = it; error = null }
+//    }
+
+    // D-014: системный диалог «папка + имя»; возвращает Uri созданного (пустого) документа
+    val createDoc = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        if (uri == null) { busy = false; return@rememberLauncherForActivityResult }
+        persist(context, uri)
+        val m = master.toCharArray()
+        scope.launch {
+            val ok = withContext(Dispatchers.Default) { session.create(uri, m) }
+            busy = false
+            master = ""; confirm = ""
+            if (ok) {
+                vaultUri = uri; error = null
+            } else {
+                runCatching { DocumentFile.fromSingleUri(context, uri)?.delete() }
+                error = "Не удалось записать сейф-файл"
+            }
+        }
     }
 
     val state = LockUiState(
@@ -183,7 +205,7 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
         confirm = confirm,
         error = error,
         hasVaultFile = vaultUri != null,
-        treeChosen = pendingTree != null,
+        //treeChosen = pendingTree != null,
         busy = busy
     )
 
@@ -192,7 +214,7 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
         onMasterChange = { master = it; error = null },
         onConfirmChange = { confirm = it; error = null },
         onPickFile = { openDoc.launch(arrayOf("*/*")) },
-        onPickTree = { openTree.launch(null) },
+        //onPickTree = { openTree.launch(null) },
         onUnlock = {
             val uri = vaultUri ?: return@LockScreenContent
             if (busy) return@LockScreenContent
@@ -212,32 +234,40 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
                 }
             }
         },
+//        onCreate = {
+//            val tree = pendingTree
+//            if (tree == null) { error = "Сначала выберите папку"; return@LockScreenContent }
+//            if (master != confirm) { error = "Пароли не совпадают"; return@LockScreenContent }
+//            if (busy) return@LockScreenContent
+//            val m = master.toCharArray()
+//            scope.launch {
+//                busy = true
+//                val outcome = withContext(Dispatchers.Default) {
+//                    val uri = store.createInTree(tree, VaultFiles.DEFAULT_NAME)
+//                        ?: return@withContext null to "Не удалось создать файл"
+//                    persist(context, uri)
+//                    if (session.create(uri, m)) {
+//                        uri to null
+//                    } else {
+//                        // не оставляем пустой огрызок в папке пользователя
+//                        runCatching { DocumentFile.fromSingleUri(context, uri)?.delete() }
+//                        null to "Не удалось записать vault"
+//                    }
+//                }
+//                busy = false
+//                master = ""; confirm = ""
+//                outcome.first?.let { vaultUri = it; pendingTree = null }
+//                error = outcome.second
+//            }
+//        },
+
         onCreate = {
-            val tree = pendingTree
-            if (tree == null) { error = "Сначала выберите папку"; return@LockScreenContent }
-            if (master != confirm) { error = "Пароли не совпадают"; return@LockScreenContent }
             if (busy) return@LockScreenContent
-            val m = master.toCharArray()
-            scope.launch {
-                busy = true
-                val outcome = withContext(Dispatchers.Default) {
-                    val uri = store.createInTree(tree, VaultFiles.DEFAULT_NAME)
-                        ?: return@withContext null to "Не удалось создать файл"
-                    persist(context, uri)
-                    if (session.create(uri, m)) {
-                        uri to null
-                    } else {
-                        // не оставляем пустой огрызок в папке пользователя
-                        runCatching { DocumentFile.fromSingleUri(context, uri)?.delete() }
-                        null to "Не удалось записать vault"
-                    }
-                }
-                busy = false
-                master = ""; confirm = ""
-                outcome.first?.let { vaultUri = it; pendingTree = null }
-                error = outcome.second
-            }
+            if (master != confirm) { error = "Пароли не совпадают"; return@LockScreenContent }
+            busy = true
+            createDoc.launch(VaultFiles.DEFAULT_NAME)
         },
+
         onToggleMode = { creating = !creating; error = null; master = ""; confirm = "" }
     )
 }
@@ -258,7 +288,8 @@ private fun persist(context: android.content.Context, uri: Uri) {
 private fun LockPreviewUnlock() = PassVaultTheme {
     LockScreenContent(
         state = LockUiState(creating = false, fileName = "vault.qdex", hasVaultFile = true),
-        onMasterChange = {}, onConfirmChange = {}, onPickFile = {}, onPickTree = {},
+        onMasterChange = {}, onConfirmChange = {}, onPickFile = {},
+        //onPickTree = {},
         onUnlock = {}, onCreate = {}, onToggleMode = {}
     )
 }
@@ -267,8 +298,10 @@ private fun LockPreviewUnlock() = PassVaultTheme {
 @Composable
 private fun LockPreviewCreate() = PassVaultTheme {
     LockScreenContent(
-        state = LockUiState(creating = true, treeChosen = true),
-        onMasterChange = {}, onConfirmChange = {}, onPickFile = {}, onPickTree = {},
+        // D-014: убрать treeChosen = true
+        state = LockUiState(creating = true /*, treeChosen = true */),
+        onMasterChange = {}, onConfirmChange = {}, onPickFile = {},
+        //onPickTree = {},
         onUnlock = {}, onCreate = {}, onToggleMode = {}
     )
 }
@@ -278,7 +311,8 @@ private fun LockPreviewCreate() = PassVaultTheme {
 private fun LockPreviewError() = PassVaultTheme {
     LockScreenContent(
         state = LockUiState(creating = false, fileName = "vault.qdex", hasVaultFile = true, error = "Неверный мастер-пароль"),
-        onMasterChange = {}, onConfirmChange = {}, onPickFile = {}, onPickTree = {},
+        onMasterChange = {}, onConfirmChange = {}, onPickFile = {},
+        //onPickTree = {},
         onUnlock = {}, onCreate = {}, onToggleMode = {}
     )
 }
@@ -288,7 +322,8 @@ private fun LockPreviewError() = PassVaultTheme {
 private fun LockPreviewBusy() = PassVaultTheme {
     LockScreenContent(
         state = LockUiState(creating = false, fileName = "vault.qdex", hasVaultFile = true, master = "secret", busy = true),
-        onMasterChange = {}, onConfirmChange = {}, onPickFile = {}, onPickTree = {},
+        onMasterChange = {}, onConfirmChange = {}, onPickFile = {},
+        //onPickTree = {},
         onUnlock = {}, onCreate = {}, onToggleMode = {}
     )
 }

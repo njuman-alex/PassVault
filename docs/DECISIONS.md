@@ -11,3 +11,9 @@
 - D-011: запись vault = прямая truncate-запись по стабильному Uri; атомарный rename через SAF отклонён (меняет document-id, ломает ссылку); recovery = версии облака.
 - D-012: FORMAT.md v1.1 — запись по D-011 (прямая truncate, recovery = версии облака); SESSION §7 уточнён (launcher exported=true).
 - D-013: Windows-порт этап 1 = CLI (:wincli) поверх :core; паритет формата доказан кросс-платформенно. Десктоп пишет атомарно tmp+rename (D-011 касается только SAF/Android). Этап 2 = GUI (Compose Desktop).
+- D-014: создание сейфа на Android = ActivityResultContracts.CreateDocument (системный диалог
+    «папка + имя», предложенное имя VaultFiles.DEFAULT_NAME), запуск по кнопке «Создать сейф»
+    после валидации мастера. Паритет с save-диалогом десктопа. Uri созданного документа
+    persist'им как прежде; запись по D-011; при неудачной записи пустой документ удаляем.
+    Расширение не насилуем rename'ом (косметика, magic PMV3 внутри; rename ломает document-id).
+    store.createInTree и treeChosen/onPickTree удалены как неиспользуемые.
