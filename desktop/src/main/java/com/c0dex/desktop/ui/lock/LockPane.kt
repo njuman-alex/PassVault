@@ -53,35 +53,12 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
     ) {
         Text("PassVault", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
-//        Text(
-//            if (creating) "Создание нового сейфа" else "Сейф-файл: ${fileName ?: "не выбран"}",
-//            style = MaterialTheme.typography.bodyMedium,
-//            color = MaterialTheme.colorScheme.onSurfaceVariant
-//        )
-//        Spacer(Modifier.height(16.dp))
         Text(
             if (creating) "Создание нового сейфа" else "Сейф-файл: ${fileName ?: "не выбран"}",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        if (creating && path.isNotEmpty()) {
-            Spacer(Modifier.height(4.dp))
-            Text(path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
         Spacer(Modifier.height(16.dp))
-
-//        if (showChooser) {
-//            OutlinedButton(
-//                onClick = { chooseFile(save = creating)?.let { path = it.toString() } },
-//                enabled = !busy,
-//                modifier = Modifier.fillMaxWidth()
-//            ) { Text(if (creating) "Выбрать папку и имя…" else "Выбрать файл…") }
-//            if (creating && path.isNotEmpty()) {
-//                Spacer(Modifier.height(4.dp))
-//                Text(path, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-//            }
-//            Spacer(Modifier.height(16.dp))
-//        }
 
         OutlinedTextField(
             value = master, onValueChange = { master = it; error = null },
@@ -101,11 +78,10 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
 
         Button(
             onClick = {
-                if (path.isEmpty()) { error = "Выберите файл"; return@Button }
                 if (busy) return@Button
-                val p = Path.of(path)
                 if (creating) {
                     if (master != confirm) { error = "Пароли не совпадают"; return@Button }
+                    val p = chooseFile(save = true) ?: return@Button
                     if (Files.exists(p)) { error = "Файл уже существует — выберите другое имя (create не перезаписывает сейф)"; return@Button }
                     val m = master.toCharArray()
                     scope.launch {
@@ -116,6 +92,8 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
                         if (err != null) error = err
                     }
                 } else {
+                    if (path.isEmpty()) { error = "Выберите файл"; return@Button }
+                    val p = Path.of(path)
                     val m = master.toCharArray()
                     scope.launch {
                         busy = true
@@ -140,22 +118,17 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
                 else (if (creating) "Создать сейф-файл" else "Разблокировать")
             )
         }
-//        Spacer(Modifier.height(8.dp))
-//        TextButton(onClick = { creating = !creating; error = null }, enabled = !busy) {
-//            Text(if (creating) "У меня уже есть сейф-файл" else "Создать новый сейф")
-//        }
         Spacer(Modifier.height(24.dp))
-        TextButton(
-            onClick = { chooseFile(save = creating)?.let { path = it.toString() } },
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                if (creating) "Выбрать папку и имя…"
-                else if (path.isNotEmpty()) "Выбрать другой сейф-файл" else "Выбрать сейф-файл"
-            )
+        if (!creating) {
+            TextButton(
+                onClick = { chooseFile(save = false)?.let { path = it.toString() } },
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (path.isNotEmpty()) "Выбрать другой сейф-файл" else "Выбрать сейф-файл")
+            }
+            Spacer(Modifier.height(8.dp))
         }
-        Spacer(Modifier.height(8.dp))
         TextButton(onClick = { creating = !creating; error = null }, enabled = !busy) {
             Text(if (creating) "У меня уже есть сейф-файл" else "Создать новый сейф")
         }
