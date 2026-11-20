@@ -3,12 +3,14 @@ package com.c0dex.desktop.ui
 import com.c0dex.core.format.VaultFiles
 import java.nio.file.Path
 import javax.swing.JFileChooser
+import javax.swing.filechooser.FileNameExtensionFilter
 
 const val VAULT_EXT = VaultFiles.EXT
 
 /** Выбор файла: save-режим дописывает .qdex, если расширения нет (как createInTree на Android). */
 fun chooseFile(save: Boolean): Path? {
     val fc = JFileChooser()
+    fc.fileFilter = FileNameExtensionFilter("Сейф PassVault (*.$VAULT_EXT)", VAULT_EXT)
     val ok = if (save) fc.showSaveDialog(null) else fc.showOpenDialog(null)
     if (ok != JFileChooser.APPROVE_OPTION) return null
     var p = fc.selectedFile.toPath()
