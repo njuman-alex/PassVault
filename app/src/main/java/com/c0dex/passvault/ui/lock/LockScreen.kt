@@ -134,23 +134,35 @@ fun LockScreenContent(
                     enabled = !state.busy && state.master.isNotEmpty() && state.confirm.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth()
                 ) { Text(if (state.busy) "Создаём сейф…" else "Создать сейф") }
+//            } else {
+//                if (!state.hasVaultFile) {
+//                    OutlinedButton(
+//                        onClick = onPickFile,
+//                        enabled = !state.busy,
+//                        modifier = Modifier.fillMaxWidth()
+//                    ) { Text("Выбрать сейф-файл") }
+//                    Spacer(Modifier.height(8.dp))
+//                }
+//                Button(
+//                    onClick = onUnlock,
+//                    enabled = !state.busy && state.master.isNotEmpty() && state.hasVaultFile,
+//                    modifier = Modifier.fillMaxWidth()
+//                ) { Text(if (state.busy) "Проверяем пароль…" else "Разблокировать") }
+//            }
             } else {
-                if (!state.hasVaultFile) {
-                    OutlinedButton(
-                        onClick = onPickFile,
-                        enabled = !state.busy,
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Выбрать сейф-файл") }
-                    Spacer(Modifier.height(8.dp))
-                }
                 Button(
                     onClick = onUnlock,
                     enabled = !state.busy && state.master.isNotEmpty() && state.hasVaultFile,
                     modifier = Modifier.fillMaxWidth()
                 ) { Text(if (state.busy) "Проверяем пароль…" else "Разблокировать") }
+                Spacer(Modifier.height(24.dp))
+                TextButton(
+                    onClick = onPickFile,
+                    enabled = !state.busy,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(if (state.hasVaultFile) "Выбрать другой сейф-файл" else "Выбрать сейф-файл") }
             }
-
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
             TextButton(onClick = onToggleMode, enabled = !state.busy) {
                 Text(if (state.creating) "У меня уже есть сейф" else "Создать новый сейф")
             }
