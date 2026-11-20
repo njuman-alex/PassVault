@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.c0dex.core.util.TimeFormat
 import com.c0dex.passvault.data.VaultRepository
 import com.c0dex.passvault.session.SessionManager
+import com.c0dex.passvault.ui.common.HighlightedText
 import com.c0dex.passvault.ui.generator.GeneratorDialog
 import com.c0dex.passvault.ui.theme.PassVaultTheme
 
@@ -104,7 +105,8 @@ fun VaultListContent(
                         Card(modifier = Modifier.fillMaxWidth().clickable { onOpen(r.id) }) {
                             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(r.description, style = MaterialTheme.typography.titleMedium)
+                                    //Text(r.description, style = MaterialTheme.typography.titleMedium)
+                                    HighlightedText(r.description, state.query, style = MaterialTheme.typography.titleMedium)
                                     //Text("обновлено: ${r.updatedAt}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text("обновлено: ${TimeFormat.human(r.updatedAt)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
@@ -187,4 +189,19 @@ private fun ListPreview() = PassVaultTheme {
 @Composable
 private fun ListEmptyPreview() = PassVaultTheme {
     VaultListContent(state = VaultListUiState(), onQuery = {}, onOpen = {}, onAdd = {}, onLock = {})
+}
+
+@Preview(showBackground = true, name = "SearchHighlight")
+@Composable
+private fun ListSearchPreview() = PassVaultTheme {
+    VaultListContent(
+        state = VaultListUiState(
+            items = listOf(
+                VaultRepository.RecordView("1", "Госуслуги", "x", 1L),
+                VaultRepository.RecordView("2", "Банк", "y", 2L)
+            ),
+            query = "госу"
+        ),
+        onQuery = {}, onOpen = {}, onAdd = {}, onLock = {}
+    )
 }

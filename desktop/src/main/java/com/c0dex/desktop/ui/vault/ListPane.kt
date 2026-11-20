@@ -36,6 +36,7 @@ import com.c0dex.core.util.TimeFormat
 import com.c0dex.desktop.data.DesktopRepository
 import com.c0dex.desktop.session.DesktopClipboard
 import com.c0dex.desktop.session.DesktopSession
+import com.c0dex.desktop.ui.common.HighlightedText
 import com.c0dex.desktop.ui.generator.DesktopGenerator
 
 @Composable
@@ -82,7 +83,8 @@ fun ListPane(
                 Card(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(rec.description, style = MaterialTheme.typography.titleMedium)
+                            //Text(rec.description, style = MaterialTheme.typography.titleMedium)
+                            HighlightedText(rec.description, query, style = MaterialTheme.typography.titleMedium)
                             Text(TimeFormat.human(rec.updatedAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         TextButton(onClick = { onOpen(rec.id) }) { Text("Открыть") }
