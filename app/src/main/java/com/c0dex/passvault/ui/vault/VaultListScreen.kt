@@ -133,6 +133,7 @@ fun VaultListScreen(
     var tick by remember { mutableStateOf(0) }
     var showAdd by remember { mutableStateOf(false) }
     var desc by remember { mutableStateOf("") }
+    var login by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var showGen by remember { mutableStateOf(false) }
 
@@ -155,13 +156,16 @@ fun VaultListScreen(
                 Column {
                     OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Описание") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
+                    // D-015: опциональный логин между описанием и паролем
+                    OutlinedTextField(value = login, onValueChange = { login = it }, label = { Text("Логин (необязательно)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(8.dp))
                     OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Пароль") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     TextButton(onClick = { showGen = true }) { Text("🎲 Генератор…") }
                 }
             },
             confirmButton = {
                 Button(
-                    onClick = { if (repo.add(desc, pass)) { showAdd = false; desc = ""; pass = ""; tick++ } },
+                    onClick = { if (repo.add(desc, pass, login)) { showAdd = false; desc = ""; login = ""; pass = ""; tick++ } },
                     enabled = desc.isNotEmpty() && pass.isNotEmpty()
                 ) { Text("Сохранить") }
             },

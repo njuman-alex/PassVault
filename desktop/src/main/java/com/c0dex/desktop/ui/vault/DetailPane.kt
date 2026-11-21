@@ -41,6 +41,7 @@ fun DetailPane(
     var record by remember(id) { mutableStateOf(repo.get(id)) }
     var desc by remember(record) { mutableStateOf(record?.description ?: "") }
     var pass by remember(record) { mutableStateOf(record?.password ?: "") }
+    var login by remember(record) { mutableStateOf(record?.login ?: "") }
     var revealed by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -51,7 +52,7 @@ fun DetailPane(
             Spacer(Modifier.weight(1f))
             if (record != null) {
                 TextButton(onClick = {
-                    if (editing) { desc = record?.description ?: ""; pass = record?.password ?: "" }
+                    if (editing) { desc = record?.description ?: ""; pass = record?.password ?: ""; login = record?.login ?: "" }
                     editing = !editing
                 }) { Text(if (editing) "Отмена" else "Изменить") }
                 TextButton(onClick = { confirmDelete = true }) { Text("Удалить", color = MaterialTheme.colorScheme.error) }
@@ -71,6 +72,12 @@ fun DetailPane(
                         value = desc, onValueChange = { desc = it }, label = { Text("Описание") },
                         readOnly = !editing, singleLine = true, modifier = Modifier.fillMaxWidth()
                     )
+                    // D-015: логин между описанием и парольным блоком
+                    OutlinedTextField(
+                        value = login, onValueChange = { login = it }, label = { Text("Логин") },
+                        readOnly = !editing, singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedButton(onClick = { clipboard.copy(login) }, enabled = login.isNotEmpty()) { Text("📋 Копировать логин") }
                     OutlinedTextField(
                         value = pass, onValueChange = { pass = it }, label = { Text("Пароль") },
                         readOnly = !editing, singleLine = true,
@@ -85,7 +92,7 @@ fun DetailPane(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { showGen = true }) { Text("🎲 Генератор…") }
                             Button(
-                                onClick = { if (repo.update(id, desc, pass)) { record = repo.get(id); editing = false } },
+                                onClick = { if (repo.update(id, desc, pass, login)) { record = repo.get(id); editing = false } },
                                 enabled = desc.isNotEmpty() && pass.isNotEmpty()
                             ) { Text("Сохранить") }
                         }

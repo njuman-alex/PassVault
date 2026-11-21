@@ -64,5 +64,6 @@ data class RecordPayload(
     val password: String,
     val createdAt: Long,
     val updatedAt: Long,
-    val deleted: Boolean = false
+    val deleted: Boolean = false,
+    val login: String = ""
 )

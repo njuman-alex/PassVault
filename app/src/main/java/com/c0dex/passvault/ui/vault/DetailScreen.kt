@@ -44,7 +44,8 @@ data class DetailUiState(
     val password: String = "",
     val revealed: Boolean = false,
     val editing: Boolean = false,
-    val missing: Boolean = false
+    val missing: Boolean = false,
+    val login: String = ""
 )
 
 @Composable
@@ -58,7 +59,9 @@ fun DetailContent(
     onDelete: () -> Unit,
     onCopy: () -> Unit,
     onGenerate: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogin: (String) -> Unit = {},
+    onCopyLogin: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -88,6 +91,16 @@ fun DetailContent(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+            // D-015: логин между описанием и парольным блоком
+            OutlinedTextField(
+                value = state.login,
+                onValueChange = onLogin,
+                label = { Text("Логин") },
+                readOnly = !state.editing,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedButton(onClick = onCopyLogin, enabled = state.login.isNotEmpty()) { Text("📋 Копировать логин") }
             OutlinedTextField(
                 value = state.password,
                 onValueChange = onPassword,
@@ -123,25 +136,28 @@ fun DetailScreen(
     var record by remember(id) { mutableStateOf(repo.get(id)) }
     var desc by remember(record) { mutableStateOf(record?.description ?: "") }
     var pass by remember(record) { mutableStateOf(record?.password ?: "") }
+    var login by remember(record) { mutableStateOf(record?.login ?: "") }
     var revealed by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var showGen by remember { mutableStateOf(false) }
 
     DetailContent(
-        state = DetailUiState(desc, pass, revealed, editing, missing = record == null),
+        state = DetailUiState(desc, pass, revealed, editing, missing = record == null, login = login),
         onDescription = { desc = it },
         onPassword = { pass = it },
+        onLogin = { login = it },
         onToggleReveal = { revealed = !revealed },
         onToggleEdit = {
-            if (editing) { desc = record?.description ?: ""; pass = record?.password ?: "" }
+            if (editing) { desc = record?.description ?: ""; pass = record?.password ?: ""; login = record?.login ?: "" }
             editing = !editing
         },
         onSave = {
-            if (repo.update(id, desc, pass)) { record = repo.get(id); editing = false }
+            if (repo.update(id, desc, pass, login)) { record = repo.get(id); editing = false }
         },
         onDelete = { confirmDelete = true },
         onCopy = { clipboard.copySensitive("password", pass) },
+        onCopyLogin = { clipboard.copySensitive("login", login) },
         //onGenerate = { pass = PasswordGenerator.generate(); editing = true },
         onGenerate = { showGen = true },
         onBack = onBack
@@ -164,11 +180,11 @@ fun DetailScreen(
 @Preview(showBackground = true, name = "View")
 @Composable
 private fun DetailViewPreview() = PassVaultTheme {
-    DetailContent(DetailUiState("Госуслуги", "secret-123"), {}, {}, {}, {}, {}, {}, {}, {}, {})
+    DetailContent(DetailUiState("Госуслуги", "secret-123", login = "user@mail"), {}, {}, {}, {}, {}, {}, {}, {}, {})
 }
 
 @Preview(showBackground = true, name = "Edit")
 @Composable
 private fun DetailEditPreview() = PassVaultTheme {
-    DetailContent(DetailUiState("Госуслуги", "secret-123", editing = true), {}, {}, {}, {}, {}, {}, {}, {}, {})
+    DetailContent(DetailUiState("Госуслуги", "secret-123", editing = true, login = "user@mail"), {}, {}, {}, {}, {}, {}, {}, {}, {})
 }

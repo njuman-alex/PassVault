@@ -35,7 +35,7 @@ object ContainerCodec {
     @Serializable private data class WrapJson(val type: String, val iv: String, val ct: String)
     @Serializable private data class EnvelopeJson(val id: String, val iv: String, val ct: String)
     @Serializable private data class ContainerJson(val magic: String, val formatVersion: Int, val kdf: KdfJson, val wraps: List<WrapJson>, val records: List<EnvelopeJson>)
-    @Serializable private data class PayloadJson(val description: String, val password: String, val createdAt: Long, val updatedAt: Long, val deleted: Boolean = false)
+    @Serializable private data class PayloadJson(val description: String, val password: String, val createdAt: Long, val updatedAt: Long, val deleted: Boolean = false, val login: String = "")
 
     // ===== контейнер =====
 
@@ -70,7 +70,7 @@ object ContainerCodec {
 
     fun sealPayload(dek: ByteArray, id: String, payload: RecordPayload): RecordEnvelope {
         val pt = json.encodeToString(
-            PayloadJson(payload.description, payload.password, payload.createdAt, payload.updatedAt, payload.deleted)
+            PayloadJson(payload.description, payload.password, payload.createdAt, payload.updatedAt, payload.deleted, payload.login)
         ).toByteArray(Charsets.UTF_8)
         val enc = AesGcm.encrypt(dek, pt, id.toByteArray(Charsets.UTF_8))
         return RecordEnvelope(id, enc.iv, enc.ciphertext)
@@ -80,7 +80,7 @@ object ContainerCodec {
         val pt = AesGcm.decrypt(dek, env.iv, env.ct, env.id.toByteArray(Charsets.UTF_8)) ?: return null
         return try {
             val p = json.decodeFromString(PayloadJson.serializer(), String(pt, Charsets.UTF_8))
-            RecordPayload(p.description, p.password, p.createdAt, p.updatedAt, p.deleted)
+            RecordPayload(p.description, p.password, p.createdAt, p.updatedAt, p.deleted, p.login)
         } catch (e: Exception) {
             null
         }

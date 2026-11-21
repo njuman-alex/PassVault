@@ -8,33 +8,33 @@ import java.util.UUID
 /** CRUD записей поверх сессии (зеркало Android VaultRepository). Секреты не хранит: всё через withDek. */
 class DesktopRepository(private val session: DesktopSession) {
 
-    data class RecordView(val id: String, val description: String, val password: String, val updatedAt: Long)
+    data class RecordView(val id: String, val description: String, val password: String, val updatedAt: Long, val login: String = "")
 
     fun list(): List<RecordView> = session.withDek { dek ->
         val c = session.currentContainer() ?: return@withDek emptyList()
         c.records.mapNotNull { env ->
             ContainerCodec.openPayload(dek, env)
                 ?.takeIf { !it.deleted }
-                ?.let { RecordView(env.id, it.description, it.password, it.updatedAt) }
+                ?.let { RecordView(env.id, it.description, it.password, it.updatedAt, it.login) }
         }.sortedBy { it.description.lowercase() }
     } ?: emptyList()
 
-    fun add(description: String, password: String): Boolean {
+    fun add(description: String, password: String, login: String = ""): Boolean {
         val c = session.currentContainer() ?: return false
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
-        val env = session.withDek { ContainerCodec.sealPayload(it, id, RecordPayload(description, password, now, now)) }
+        val env = session.withDek { ContainerCodec.sealPayload(it, id, RecordPayload(description, password, now, now, login=login)) }
             ?: return false
         return session.replaceContainer(c.copy(records = c.records + env))
     }
 
-    fun update(id: String, description: String, password: String): Boolean {
+    fun update(id: String, description: String, password: String, login: String = ""): Boolean {
         val c = session.currentContainer() ?: return false
         val env = c.records.firstOrNull { it.id == id } ?: return false
         val p = session.withDek { ContainerCodec.openPayload(it, env) } ?: return false
         val now = System.currentTimeMillis()
         val newEnv = session.withDek {
-            ContainerCodec.sealPayload(it, id, p.copy(description = description, password = password, updatedAt = now))
+            ContainerCodec.sealPayload(it, id, p.copy(description = description, password = password, login = login, updatedAt = now))
         } ?: return false
         return session.replaceContainer(c.copy(records = c.records.map { if (it.id == id) newEnv else it }))
     }

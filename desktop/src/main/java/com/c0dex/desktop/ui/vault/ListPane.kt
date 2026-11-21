@@ -52,6 +52,7 @@ fun ListPane(
     var query by remember { mutableStateOf("") }
     var showAdd by remember { mutableStateOf(false) }
     var desc by remember { mutableStateOf("") }
+    var login by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var genTarget by remember { mutableStateOf<((String) -> Unit)?>(null) }
 
@@ -103,13 +104,16 @@ fun ListPane(
             Column {
                 OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Описание") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
+                // D-015: опциональный логин между описанием и паролем
+                OutlinedTextField(value = login, onValueChange = { login = it }, label = { Text("Логин (необязательно)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Пароль") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 TextButton(onClick = { genTarget = { pass = it } }) { Text("🎲 Генератор…") }
             }
         },
         confirmButton = {
             Button(onClick = {
-                if (repo.add(desc, pass)) { showAdd = false; desc = ""; pass = ""; tick++ }
+                if (repo.add(desc, pass, login)) { showAdd = false; desc = ""; login = ""; pass = ""; tick++ }
             }, enabled = desc.isNotEmpty() && pass.isNotEmpty()) { Text("Сохранить") }
         },
         dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Отмена") } }
