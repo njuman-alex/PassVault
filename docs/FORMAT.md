@@ -1,5 +1,5 @@
 # FORMAT.md — контейнер vault PMV3, иерархия ключей, синк
-Версия: 1.1 (amendment D-012). Изменения — только amendment'ами (v1.1, v1.2…) с записью в DECISIONS.md.
+Версия: 1.2 (amendment D-015). Изменения — только amendment'ами (v1.1, v1.2…) с записью в DECISIONS.md.
 
 ## 1. Цели и ограничения
 - Один файл открывается и редактируется на Android и Windows без конвертаций.
@@ -33,7 +33,10 @@ DEK (случайные 256 бит, генерится один раз при с
   "formatVersion": 3,
   "kdf": { "alg": "argon2id", "memoryKiB": 65536, "iterations": 3, "parallelism": 4, "salt": "<b64>" },
   "wraps": [ { "type": "master", "iv": "<b64>", "ct": "<b64>" } ],
-  "records": [ { "id": "<uuid>", "iv": "<b64>", "ct": "<b64>" } ]
+  "records": [ { "id": "<uuid>", "iv": "<b64>", "ct": "<b64>" } ],
+  "description": "...", "password": "...",
+  "createdAt": <epochMillisUTC>, "updatedAt": <epochMillisUTC>, "deleted": false,
+  "login": "..." 
 }
 
 - ct записи = AES-GCM(DEK, iv, payload, AAD = id), payload:
@@ -42,6 +45,8 @@ DEK (случайные 256 бит, генерится один раз при с
 - deleted: true = tombstone (удаление propagate-ится синком).
 - Открытым текстом только: magic, formatVersion, kdf, wraps, UUID записей.
   Семантических утечек нет.
+- login — опциональное поле (v1.2, D-015): в старых файлах отсутствует → читается как "";
+    новые файлы читаются старыми клиентами и wincli (парсер терпит неизвестные поля).
 
 ## 5. Синк и слияние
 - Источник правды — файл в синхронизируемой папке; отдельной локальной базы нет.
@@ -63,7 +68,7 @@ DEK (случайные 256 бит, генерится один раз при с
 ## 7. Отложено (не ломает формат)
 - recovery-обёртка и device-обёртка (биометрия) — элемент в wraps.
 - compaction tombstone-ов, merge-UI конфликт-копий.
-- поля notes/url/tags в payload — без bump версии.
+- поля notes/url/tags в payload — без bump версии; login реализован в v1.2 (D-015).
 
 ## 8. План проверки (до UI)
 - Unit-векторы: фиксированный master+params -> детерминированный KEK;

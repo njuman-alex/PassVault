@@ -17,3 +17,10 @@
     persist'им как прежде; запись по D-011; при неудачной записи пустой документ удаляем.
     Расширение не насилуем rename'ом (косметика, magic PMV3 внутри; rename ломает document-id).
     store.createInTree и treeChosen/onPickTree удалены как неиспользуемые.
+- D-015: payload записи получает опциональное поле login (дефолт "", добавлено в КОНЕЦ
+    PayloadJson/RecordPayload — позиционные вызовы и замороженный wincli не ломаются).
+    FORMAT.md v1.2; совместимость в обе стороны при ignoreUnknownKeys=true. Merge без
+    изменений (login внутри записи, governance = updatedAt). Карточка детали: описание →
+    логин → «Копировать логин» → парольный блок без изменений; копирование логина через
+    общий clipboard-таймаут (copySensitive("login", …) / DesktopClipboard.copy). Диалоги
+    добавления получают опциональное поле «Логин»; RecordView/add/update — login с дефолтом.
