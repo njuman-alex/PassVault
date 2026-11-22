@@ -29,24 +29,22 @@ DEK (случайные 256 бит, генерится один раз при с
 
 ## 4. Раскладка контейнера
 {
-  "magic": "PMV3",
-  "formatVersion": 3,
-  "kdf": { "alg": "argon2id", "memoryKiB": 65536, "iterations": 3, "parallelism": 4, "salt": "<b64>" },
-  "wraps": [ { "type": "master", "iv": "<b64>", "ct": "<b64>" } ],
-  "records": [ { "id": "<uuid>", "iv": "<b64>", "ct": "<b64>" } ],
-  "description": "...", "password": "...",
-  "createdAt": <epochMillisUTC>, "updatedAt": <epochMillisUTC>, "deleted": false,
-  "login": "..." 
+"magic": "PMV3",
+"formatVersion": 3,
+"kdf": { "alg": "argon2id", "memoryKiB": 65536, "iterations": 3, "parallelism": 4, "salt": "<b64>" },
+"wraps": [ { "type": "master", "iv": "<b64>", "ct": "<b64>" } ],
+"records": [ { "id": "<uuid>", "iv": "<b64>", "ct": "<b64>" } ]
 }
 
 - ct записи = AES-GCM(DEK, iv, payload, AAD = id), payload:
   { "description": "...", "password": "...",
-    "createdAt": <epochMillisUTC>, "updatedAt": <epochMillisUTC>, "deleted": false }
+  "createdAt": <epochMillisUTC>, "updatedAt": <epochMillisUTC>, "deleted": false,
+  "login": "..." }
 - deleted: true = tombstone (удаление propagate-ится синком).
+- login — опциональное поле (v1.2, D-015): в старых файлах отсутствует → читается как "";
+  новые файлы читаются старыми клиентами и wincli (парсер терпит неизвестные поля).
 - Открытым текстом только: magic, formatVersion, kdf, wraps, UUID записей.
   Семантических утечек нет.
-- login — опциональное поле (v1.2, D-015): в старых файлах отсутствует → читается как "";
-    новые файлы читаются старыми клиентами и wincli (парсер терпит неизвестные поля).
 
 ## 5. Синк и слияние
 - Источник правды — файл в синхронизируемой папке; отдельной локальной базы нет.
