@@ -76,11 +76,19 @@ fun ListPane(
                 }
             }
         }
+        // Счётчик: поднимаем фильтр сюда, чтобы использовать и в счётчике, и в списке ниже
+        val filtered = items.filter { it.description.contains(query, ignoreCase = true) }
+        Text(
+            if (query.isEmpty()) "Паролей в сейфе: ${items.size}"
+            else "Паролей в сейфе: ${items.size}, найдено: ${filtered.size}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("Поиск") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(items.filter { it.description.contains(query, ignoreCase = true) }, key = { it.id }) { rec ->
+            items(filtered, key = { it.id }) { rec ->
                 Card(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {

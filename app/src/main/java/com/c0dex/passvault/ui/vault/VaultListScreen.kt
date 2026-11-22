@@ -79,6 +79,14 @@ fun VaultListContent(
         floatingActionButton = { FloatingActionButton(onClick = onAdd) { Icon(Icons.Default.Add, "Добавить") } }
     ) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
+            val filtered = state.items.filter { it.description.contains(state.query, ignoreCase = true) }
+            Text(
+                if (state.query.isEmpty()) "Паролей в сейфе: ${state.items.size}"
+                else "Паролей в сейфе: ${state.items.size}, найдено: ${filtered.size}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp)
+            )
             OutlinedTextField(
                 value = state.query,
                 onValueChange = onQuery,
@@ -87,7 +95,7 @@ fun VaultListContent(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             )
-            val filtered = state.items.filter { it.description.contains(state.query, ignoreCase = true) }
+            //val filtered = state.items.filter { it.description.contains(state.query, ignoreCase = true) }
             if (filtered.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
