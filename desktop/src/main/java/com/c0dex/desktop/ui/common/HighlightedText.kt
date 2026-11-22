@@ -1,6 +1,5 @@
 package com.c0dex.desktop.ui.common
 
-import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -10,6 +9,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import com.c0dex.core.util.SearchHighlight
 
 /**
@@ -29,7 +29,7 @@ fun HighlightedText(
     val annotated = buildAnnotatedString {
         append(text)
         SearchHighlight.ranges(text, query).forEach { r ->
-            addStyle(SpanStyle(color = highlight, fontWeight = FontWeight.SemiBold), r.first, r.endExclusive)
+            addStyle(SpanStyle(color = highlight, fontWeight = FontWeight.SemiBold), r.first, r.endInclusive + 1)
         }
     }
     Text(annotated, modifier = modifier, style = style, maxLines = maxLines, overflow = overflow)

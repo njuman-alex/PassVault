@@ -20,6 +20,7 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.kotlinx.coroutines.swing)
+    implementation(compose.uiTooling)
 }
 compose.desktop {
     application {

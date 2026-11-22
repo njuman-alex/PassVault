@@ -29,7 +29,8 @@ fun HighlightedText(
     val annotated = buildAnnotatedString {
         append(text)
         SearchHighlight.ranges(text, query).forEach { r ->
-            addStyle(SpanStyle(color = highlight, fontWeight = FontWeight.SemiBold), r.first, r.endExclusive)
+            //addStyle(SpanStyle(color = highlight, fontWeight = FontWeight.SemiBold), r.first, r.endExclusive)
+            addStyle(SpanStyle(color = highlight, fontWeight = FontWeight.SemiBold), r.first, r.endInclusive + 1)
         }
     }
     Text(annotated, modifier = modifier, style = style, maxLines = maxLines, overflow = overflow)
