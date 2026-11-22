@@ -21,6 +21,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.c0dex.desktop.data.DesktopPrefs
@@ -46,8 +52,58 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
         ?.let { runCatching { Path.of(it).fileName.toString() }.getOrDefault(it) }
     //val showChooser = creating || path.isEmpty()
 
+    // Первичное действие: разблокировать (unlock) или создать сейф (create).
+    // Вынесено, чтобы кнопка и Enter-клавиша вызывали ровно один и тот же код.
+    val primaryEnabled = !busy && master.isNotEmpty() && (!creating || confirm.isNotEmpty())
+
+    val primaryClick: () -> Unit = click@{
+        if (busy) return@click
+        if (creating) {
+            if (master != confirm) { error = "Пароли не совпадают"; return@click }
+            val p = chooseFile(save = true) ?: return@click
+            if (Files.exists(p)) { error = "Файл уже существует — выберите другое имя (create не перезаписывает сейф)"; return@click }
+            val m = master.toCharArray()
+            scope.launch {
+                busy = true
+                val err = withContext(Dispatchers.Default) { session.create(p, m) }
+                busy = false
+                master = ""; confirm = ""
+                if (err != null) error = err
+            }
+        } else {
+            if (path.isEmpty()) { error = "Выберите файл"; return@click }
+            val p = Path.of(path)
+            val m = master.toCharArray()
+            scope.launch {
+                busy = true
+                val r = withContext(Dispatchers.Default) { session.unlock(p, m) }
+                busy = false
+                master = ""; confirm = ""
+                error = when (r) {
+                    is DesktopSession.UnlockResult.Success -> null
+                    is DesktopSession.UnlockResult.WrongMaster -> "Неверный мастер-пароль"
+                    is DesktopSession.UnlockResult.CorruptFile -> "Файл повреждён или не .qdex"
+                    is DesktopSession.UnlockResult.IoError -> "Не удалось прочитать файл"
+                    is DesktopSession.UnlockResult.Delayed -> "Подождите ${r.remainingMs / 1000 + 1} с"
+                }
+            }
+        }
+    }
+
+    // Enter = клик по «Разблокировать»; в create-режиме всё остаётся мышкой.
+    val onEnterKey: (KeyEvent) -> Boolean = { event ->
+        if (!creating &&
+            event.type == KeyEventType.KeyDown &&
+            (event.key == Key.Enter || event.key == Key.NumPadEnter) &&
+            primaryEnabled
+        ) {
+            primaryClick()
+            true
+        } else false
+    }
+
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
+        Modifier.fillMaxSize().padding(24.dp).onKeyEvent(onEnterKey),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -76,43 +132,16 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
         Spacer(Modifier.height(16.dp))
         if (error != null) { Text(error!!, color = MaterialTheme.colorScheme.error); Spacer(Modifier.height(8.dp)) }
 
-        Button(
-            onClick = {
-                if (busy) return@Button
-                if (creating) {
-                    if (master != confirm) { error = "Пароли не совпадают"; return@Button }
-                    val p = chooseFile(save = true) ?: return@Button
-                    if (Files.exists(p)) { error = "Файл уже существует — выберите другое имя (create не перезаписывает сейф)"; return@Button }
-                    val m = master.toCharArray()
-                    scope.launch {
-                        busy = true
-                        val err = withContext(Dispatchers.Default) { session.create(p, m) }
-                        busy = false
-                        master = ""; confirm = ""
-                        if (err != null) error = err
-                    }
-                } else {
-                    if (path.isEmpty()) { error = "Выберите файл"; return@Button }
-                    val p = Path.of(path)
-                    val m = master.toCharArray()
-                    scope.launch {
-                        busy = true
-                        val r = withContext(Dispatchers.Default) { session.unlock(p, m) }
-                        busy = false
-                        master = ""; confirm = ""
-                        error = when (r) {
-                            is DesktopSession.UnlockResult.Success -> null
-                            is DesktopSession.UnlockResult.WrongMaster -> "Неверный мастер-пароль"
-                            is DesktopSession.UnlockResult.CorruptFile -> "Файл повреждён или не .qdex"
-                            is DesktopSession.UnlockResult.IoError -> "Не удалось прочитать файл"
-                            is DesktopSession.UnlockResult.Delayed -> "Подождите ${r.remainingMs / 1000 + 1} с"
-                        }
-                    }
-                }
-            },
-            enabled = !busy && master.isNotEmpty() && (!creating || confirm.isNotEmpty()),
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        // было:
+        //        Button(
+        //            onClick = {
+        //                if (busy) return@Button
+        //                if (creating) { ... } else { ... }
+        //            },
+        //            enabled = !busy && master.isNotEmpty() && (!creating || confirm.isNotEmpty()),
+        //            modifier = Modifier.fillMaxWidth()
+        //        ) { ... }
+        Button(onClick = primaryClick, enabled = primaryEnabled, modifier = Modifier.fillMaxWidth()) {
             Text(
                 if (busy) (if (creating) "Создаём сейф…" else "Проверяем пароль…")
                 else (if (creating) "Создать сейф-файл" else "Разблокировать")
