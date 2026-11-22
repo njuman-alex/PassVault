@@ -34,7 +34,7 @@ compose.desktop {
             vendor = "c0dex"
             copyright = "© 2026 c0dex"
             windows {
-                // iconFile.set(file("icons/passvault.ico"))  // раскомментируй, когда положишь .ico
+                iconFile.set(file("icons/passvault.ico"))  // раскомментируй, когда положишь .ico
                 upgradeUuid = "b7f3a2c1-4d5e-4f6a-9b8c-1d2e3f4a5b6c"  // НЕ менять между версиями
                 menuGroup = "PassVault"
                 shortcut = true
