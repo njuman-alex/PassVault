@@ -30,10 +30,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
 import com.c0dex.core.format.VaultFiles
+import com.c0dex.passvault.BuildConfig
 import com.c0dex.passvault.data.SettingsPrefs
 import com.c0dex.passvault.data.VaultFileStore
 import com.c0dex.passvault.session.SessionManager
@@ -73,99 +76,95 @@ fun LockScreenContent(
             modifier = Modifier
                 .padding(pad)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("PassVault", style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                if (state.creating) "Создание нового сейфа" else "Сейф-файл: ${state.fileName ?: "не выбран"}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(24.dp))
-
-            OutlinedTextField(
-                value = state.master,
-                onValueChange = onMasterChange,
-                label = { Text("Мастер-пароль") },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true,
-                enabled = !state.busy,
-                modifier = Modifier.fillMaxWidth()
-            )
-            if (state.master.isEmpty()) {
+            // контент: центрируется, скроллится если не влезает
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("PassVault", style = MaterialTheme.typography.headlineMedium)
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    if (state.creating) "Придумайте мастер-пароль — он не хранится нигде" else "Введите мастер-пароль",
+                    if (state.creating) "Создание нового сейфа" else "Сейф-файл: ${state.fileName ?: "не выбран"}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-            if (state.creating) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(24.dp))
+
                 OutlinedTextField(
-                    value = state.confirm,
-                    onValueChange = onConfirmChange,
-                    label = { Text("Повторите мастер-пароль") },
+                    value = state.master,
+                    onValueChange = onMasterChange,
+                    label = { Text("Мастер-пароль") },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     enabled = !state.busy,
                     modifier = Modifier.fillMaxWidth()
                 )
-            }
-            Spacer(Modifier.height(16.dp))
+                if (state.master.isEmpty()) {
+                    Text(
+                        if (state.creating) "Придумайте мастер-пароль — он не хранится нигде" else "Введите мастер-пароль",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (state.creating) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.confirm,
+                        onValueChange = onConfirmChange,
+                        label = { Text("Повторите мастер-пароль") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        enabled = !state.busy,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
 
-            if (state.error != null) {
-                Text(state.error, color = MaterialTheme.colorScheme.error)
+                if (state.error != null) {
+                    Text(state.error, color = MaterialTheme.colorScheme.error)
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                if (state.creating) {
+                    Button(
+                        onClick = onCreate,
+                        enabled = !state.busy && state.master.isNotEmpty() && state.confirm.isNotEmpty(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (state.busy) "Создаём сейф…" else "Создать сейф") }
+                } else {
+                    Button(
+                        onClick = onUnlock,
+                        enabled = !state.busy && state.master.isNotEmpty() && state.hasVaultFile,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (state.busy) "Проверяем пароль…" else "Разблокировать") }
+                    Spacer(Modifier.height(24.dp))
+                    TextButton(
+                        onClick = onPickFile,
+                        enabled = !state.busy,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (state.hasVaultFile) "Выбрать другой сейф-файл" else "Выбрать сейф-файл") }
+                }
                 Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onToggleMode, enabled = !state.busy) {
+                    Text(if (state.creating) "У меня уже есть сейф" else "Создать новый сейф")
+                }
             }
+            Spacer(modifier = Modifier.height(8.dp))
 
-            if (state.creating) {
-//                OutlinedButton(
-//                    onClick = onPickTree,
-//                    enabled = !state.busy,
-//                    modifier = Modifier.fillMaxWidth()
-//                ) { Text(if (state.treeChosen) "Папка выбрана ✓" else "Выбрать папку для сохранения") }
-//                Spacer(Modifier.height(8.dp))
-                Button(
-                    onClick = onCreate,
-                    enabled = !state.busy && state.master.isNotEmpty() && state.confirm.isNotEmpty(),
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(if (state.busy) "Создаём сейф…" else "Создать сейф") }
-//            } else {
-//                if (!state.hasVaultFile) {
-//                    OutlinedButton(
-//                        onClick = onPickFile,
-//                        enabled = !state.busy,
-//                        modifier = Modifier.fillMaxWidth()
-//                    ) { Text("Выбрать сейф-файл") }
-//                    Spacer(Modifier.height(8.dp))
-//                }
-//                Button(
-//                    onClick = onUnlock,
-//                    enabled = !state.busy && state.master.isNotEmpty() && state.hasVaultFile,
-//                    modifier = Modifier.fillMaxWidth()
-//                ) { Text(if (state.busy) "Проверяем пароль…" else "Разблокировать") }
-//            }
-            } else {
-                Button(
-                    onClick = onUnlock,
-                    enabled = !state.busy && state.master.isNotEmpty() && state.hasVaultFile,
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(if (state.busy) "Проверяем пароль…" else "Разблокировать") }
-                Spacer(Modifier.height(24.dp))
-                TextButton(
-                    onClick = onPickFile,
-                    enabled = !state.busy,
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(if (state.hasVaultFile) "Выбрать другой сейф-файл" else "Выбрать сейф-файл") }
-            }
-            Spacer(Modifier.height(8.dp))
-            TextButton(onClick = onToggleMode, enabled = !state.busy) {
-                Text(if (state.creating) "У меня уже есть сейф" else "Создать новый сейф")
-            }
+            // Версия — прибита к низу экрана, вне скролла
+            Text(
+                text = "ver. ${BuildConfig.VERSION_NAME}",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -180,15 +179,11 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
     var error by remember { mutableStateOf<String?>(null) }
     var creating by remember { mutableStateOf(prefs.vaultUri == null) }
     var vaultUri by remember { mutableStateOf(prefs.vaultUri?.let(Uri::parse)) }
-    //var pendingTree by remember { mutableStateOf<Uri?>(null) }
     var busy by remember { mutableStateOf(false) }
 
     val openDoc = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { persist(context, it); vaultUri = it; prefs.vaultUri = it.toString(); error = null }
     }
-//    val openTree = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
-//        tree?.let { persist(context, it); pendingTree = it; error = null }
-//    }
 
     // D-014: системный диалог «папка + имя»; возвращает Uri созданного (пустого) документа
     val createDoc = rememberLauncherForActivityResult(
@@ -217,7 +212,6 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
         confirm = confirm,
         error = error,
         hasVaultFile = vaultUri != null,
-        //treeChosen = pendingTree != null,
         busy = busy
     )
 
@@ -246,32 +240,6 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
                 }
             }
         },
-//        onCreate = {
-//            val tree = pendingTree
-//            if (tree == null) { error = "Сначала выберите папку"; return@LockScreenContent }
-//            if (master != confirm) { error = "Пароли не совпадают"; return@LockScreenContent }
-//            if (busy) return@LockScreenContent
-//            val m = master.toCharArray()
-//            scope.launch {
-//                busy = true
-//                val outcome = withContext(Dispatchers.Default) {
-//                    val uri = store.createInTree(tree, VaultFiles.DEFAULT_NAME)
-//                        ?: return@withContext null to "Не удалось создать файл"
-//                    persist(context, uri)
-//                    if (session.create(uri, m)) {
-//                        uri to null
-//                    } else {
-//                        // не оставляем пустой огрызок в папке пользователя
-//                        runCatching { DocumentFile.fromSingleUri(context, uri)?.delete() }
-//                        null to "Не удалось записать vault"
-//                    }
-//                }
-//                busy = false
-//                master = ""; confirm = ""
-//                outcome.first?.let { vaultUri = it; pendingTree = null }
-//                error = outcome.second
-//            }
-//        },
 
         onCreate = {
             if (busy) return@LockScreenContent
