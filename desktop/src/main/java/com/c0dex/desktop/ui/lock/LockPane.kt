@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -37,6 +39,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Files
 import java.nio.file.Path
+import com.c0dex.desktop.Version
 
 @Composable
 fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
@@ -104,62 +107,79 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
 
     Column(
         Modifier.fillMaxSize().padding(24.dp).onKeyEvent(onEnterKey),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("PassVault", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            if (creating) "Создание нового сейфа" else "Сейф-файл: ${fileName ?: "не выбран"}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = master, onValueChange = { master = it; error = null },
-            label = { Text("Мастер-пароль") }, visualTransformation = PasswordVisualTransformation(),
-            singleLine = true, enabled = !busy, modifier = Modifier.fillMaxWidth()
-        )
-        if (creating) {
+        // контент: центрируется, скроллится если окно маленькое
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("PassVault", style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(8.dp))
+            Text(
+                if (creating) "Создание нового сейфа" else "Сейф-файл: ${fileName ?: "не выбран"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(16.dp))
+
             OutlinedTextField(
-                value = confirm, onValueChange = { confirm = it; error = null },
-                label = { Text("Повторите") }, visualTransformation = PasswordVisualTransformation(),
+                value = master, onValueChange = { master = it; error = null },
+                label = { Text("Мастер-пароль") }, visualTransformation = PasswordVisualTransformation(),
                 singleLine = true, enabled = !busy, modifier = Modifier.fillMaxWidth()
             )
-        }
-        Spacer(Modifier.height(16.dp))
-        if (error != null) { Text(error!!, color = MaterialTheme.colorScheme.error); Spacer(Modifier.height(8.dp)) }
-
-        // было:
-        //        Button(
-        //            onClick = {
-        //                if (busy) return@Button
-        //                if (creating) { ... } else { ... }
-        //            },
-        //            enabled = !busy && master.isNotEmpty() && (!creating || confirm.isNotEmpty()),
-        //            modifier = Modifier.fillMaxWidth()
-        //        ) { ... }
-        Button(onClick = primaryClick, enabled = primaryEnabled, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                if (busy) (if (creating) "Создаём сейф…" else "Проверяем пароль…")
-                else (if (creating) "Создать сейф-файл" else "Разблокировать")
-            )
-        }
-        Spacer(Modifier.height(24.dp))
-        if (!creating) {
-            TextButton(
-                onClick = { chooseFile(save = false)?.let { path = it.toString() } },
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (path.isNotEmpty()) "Выбрать другой сейф-файл" else "Выбрать сейф-файл")
+            if (creating) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = confirm, onValueChange = { confirm = it; error = null },
+                    label = { Text("Повторите") }, visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true, enabled = !busy, modifier = Modifier.fillMaxWidth()
+                )
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
+            if (error != null) { Text(error!!, color = MaterialTheme.colorScheme.error); Spacer(Modifier.height(8.dp)) }
+
+            // было:
+            //        Button(
+            //            onClick = {
+            //                if (busy) return@Button
+            //                if (creating) { ... } else { ... }
+            //            },
+            //            enabled = !busy && master.isNotEmpty() && (!creating || confirm.isNotEmpty()),
+            //            modifier = Modifier.fillMaxWidth()
+            //        ) { ... }
+            Button(onClick = primaryClick, enabled = primaryEnabled, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    if (busy) (if (creating) "Создаём сейф…" else "Проверяем пароль…")
+                    else (if (creating) "Создать сейф-файл" else "Разблокировать")
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+            if (!creating) {
+                TextButton(
+                    onClick = { chooseFile(save = false)?.let { path = it.toString() } },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (path.isNotEmpty()) "Выбрать другой сейф-файл" else "Выбрать сейф-файл")
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+            TextButton(onClick = { creating = !creating; error = null }, enabled = !busy) {
+                Text(if (creating) "У меня уже есть сейф-файл" else "Создать новый сейф")
+            }
         }
-        TextButton(onClick = { creating = !creating; error = null }, enabled = !busy) {
-            Text(if (creating) "У меня уже есть сейф-файл" else "Создать новый сейф")
-        }
+        Spacer(Modifier.height(8.dp))
+
+        // Версия — прибита к низу окна, вне скролла (паритет с Android)
+        Text(
+            text = "ver. ${Version.NAME}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
