@@ -11,4 +11,5 @@ object VaultFiles {
     const val EXT = "qdex"
     const val DEFAULT_NAME = "vault.qdex"
     const val TEMP_PREFIX = ".qdex-"
+    const val BACKUP_PREFIX = "backup-"
 }

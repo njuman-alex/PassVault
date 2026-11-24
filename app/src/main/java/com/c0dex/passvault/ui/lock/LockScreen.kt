@@ -55,7 +55,8 @@ data class LockUiState(
     val hasVaultFile: Boolean = false,
     // D-014: убрать
     //val treeChosen: Boolean = false,
-    val busy: Boolean = false
+    val busy: Boolean = false,
+    val showRecover: Boolean = false   // D-022: видна кнопка восстановления из last-good backup
 )
 
 /** Чистый UI лок-скрина: только состояние и колбэки, никаких зависимостей. */
@@ -69,7 +70,8 @@ fun LockScreenContent(
     //onPickTree: () -> Unit,
     onUnlock: () -> Unit,
     onCreate: () -> Unit,
-    onToggleMode: () -> Unit
+    onToggleMode: () -> Unit,
+    onRecover: () -> Unit = {}   // D-022: явное восстановление main из backup
 ) {
     Scaffold { pad ->
         Column(
@@ -130,6 +132,13 @@ fun LockScreenContent(
                 if (state.error != null) {
                     Text(state.error, color = MaterialTheme.colorScheme.error)
                     Spacer(Modifier.height(8.dp))
+                    // D-022: при повреждении main и наличии backup этого сейфа — явная кнопка
+                    if (state.showRecover) {
+                        TextButton(onClick = onRecover, enabled = !state.busy) {
+                            Text("Восстановить из резервной копии")
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
                 }
 
                 if (state.creating) {
@@ -180,9 +189,11 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
     var creating by remember { mutableStateOf(prefs.vaultUri == null) }
     var vaultUri by remember { mutableStateOf(prefs.vaultUri?.let(Uri::parse)) }
     var busy by remember { mutableStateOf(false) }
+    var showRecover by remember { mutableStateOf(false) }   // D-022
 
     val openDoc = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { persist(context, it); vaultUri = it; prefs.vaultUri = it.toString(); error = null }
+        // было: uri?.let { persist(context, it); vaultUri = it; prefs.vaultUri = it.toString(); error = null }
+        uri?.let { persist(context, it); vaultUri = it; prefs.vaultUri = it.toString(); error = null; showRecover = false }   // D-022: другой сейф — старая кнопка не нужна
     }
 
     // D-014: системный диалог «папка + имя»; возвращает Uri созданного (пустого) документа
@@ -212,12 +223,15 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
         confirm = confirm,
         error = error,
         hasVaultFile = vaultUri != null,
-        busy = busy
+        // было: busy = busy
+        busy = busy,
+        showRecover = showRecover   // D-022
     )
 
     LockScreenContent(
         state = state,
-        onMasterChange = { master = it; error = null },
+        // было: onMasterChange = { master = it; error = null },
+        onMasterChange = { master = it; error = null; showRecover = false },   // D-022
         onConfirmChange = { confirm = it; error = null },
         onPickFile = { openDoc.launch(arrayOf("*/*")) },
         //onPickTree = { openTree.launch(null) },
@@ -231,9 +245,15 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
                 busy = false
                 master = ""
                 error = when (result) {
-                    is SessionManager.UnlockResult.Success -> null
+                    // было: is SessionManager.UnlockResult.Success -> null
+                    is SessionManager.UnlockResult.Success -> { showRecover = false; null }   // D-022
                     is SessionManager.UnlockResult.WrongMaster -> "Неверный мастер-пароль"
-                    is SessionManager.UnlockResult.CorruptFile -> "Файл повреждён или не .qdex"
+                    // было: is SessionManager.UnlockResult.CorruptFile -> "Файл повреждён или не .qdex"
+                    is SessionManager.UnlockResult.CorruptFile -> {
+                        // D-022: предлагаем восстановление, только если backup именно этого сейфа
+                        showRecover = vaultUri?.let { store.hasBackup(it) } ?: false
+                        "Файл повреждён или не .qdex"
+                    }
                     is SessionManager.UnlockResult.IoError -> "Не удалось прочитать файл"
                     is SessionManager.UnlockResult.Delayed ->
                         "Слишком много попыток. Подождите ${result.remainingMs / 1000 + 1} с"
@@ -248,7 +268,15 @@ fun LockScreen(session: SessionManager, store: VaultFileStore, prefs: SettingsPr
             createDoc.launch(VaultFiles.DEFAULT_NAME)
         },
 
-        onToggleMode = { creating = !creating; error = null; master = ""; confirm = "" }
+        // было: onToggleMode = { creating = !creating; error = null; master = ""; confirm = "" }
+        onToggleMode = { creating = !creating; error = null; master = ""; confirm = ""; showRecover = false },   // D-022
+
+        // D-022: явное восстановление main из last-good backup, затем пользователь жмёт «Разблокировать»
+        onRecover = {
+            val u = vaultUri
+            if (u != null && store.recover(u)) { showRecover = false; error = null }
+            else error = "Резервная копия недоступна или повреждена"
+        }
     )
 }
 
@@ -304,6 +332,20 @@ private fun LockPreviewBusy() = PassVaultTheme {
         state = LockUiState(creating = false, fileName = "vault.qdex", hasVaultFile = true, master = "secret", busy = true),
         onMasterChange = {}, onConfirmChange = {}, onPickFile = {},
         //onPickTree = {},
+        onUnlock = {}, onCreate = {}, onToggleMode = {}
+    )
+}
+
+// D-022: повреждённый main + живой backup → кнопка восстановления
+@Preview(showBackground = true, name = "Recover")
+@Composable
+private fun LockPreviewRecover() = PassVaultTheme {
+    LockScreenContent(
+        state = LockUiState(
+            creating = false, fileName = "vault.qdex", hasVaultFile = true,
+            error = "Файл повреждён или не .qdex", showRecover = true
+        ),
+        onMasterChange = {}, onConfirmChange = {}, onPickFile = {},
         onUnlock = {}, onCreate = {}, onToggleMode = {}
     )
 }
