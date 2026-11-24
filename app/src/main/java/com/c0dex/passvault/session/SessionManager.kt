@@ -53,7 +53,9 @@ class SessionManager(
     private var container: VaultContainer? = null
     private var idleJob: Job? = null
     private var backgroundTs = 0L
-    private var externalActivity = false
+    // было: private var externalActivity = false
+    private var expectPickerStop = false   // D-023: ждём ровно один ON_STOP от нашего SAF-пикера
+    private var pickerReturned = false     // D-023: результат пикера доставлен (выбор ИЛИ отмена)
 
     /** Доступ к DEK только в UNLOCKED; вызывающий не сохраняет и не затирает массив. */
     fun <T> withDek(block: (ByteArray) -> T): T? = dek?.let(block)
@@ -202,21 +204,30 @@ class SessionManager(
 
     // ===== внешние activity (SAF picker и т.п.): не считать уходом в фон =====
 
-    fun beginExternalActivity() { externalActivity = true }
+    // D-023: узкое исключение — только наш SAF-пикер, ровно на один ON_STOP
+    fun beginExternalActivity() { expectPickerStop = true }
 
-    fun endExternalActivity() {
-        externalActivity = false
-        if (isUnlocked) { touch(); startIdle() }
-    }
+    // D-023: зовётся из callback лаунчера (выбор И отмена); заменяет endExternalActivity
+    fun notePickerReturned() { pickerReturned = true }
+
+    // было:
+    //    fun endExternalActivity() {
+    //        externalActivity = false
+    //        if (isUnlocked) { touch(); startIdle() }
+    //    }
 
     fun onBackground() {
-        if (externalActivity) return
         backgroundTs = System.currentTimeMillis()
+        if (expectPickerStop) { expectPickerStop = false; return }   // пикер открылся: не лочим, ts фиксируем
+        // D-023: «сразу» (grace=0) = лок В МОМЕНТ ухода, DEK затирается немедленно
+        if (prefs.backgroundGraceMs == 0L) lock()
     }
 
+
     fun onForeground() {
+        if (expectPickerStop) expectPickerStop = false   // пикер так и не открылся — сброс ожидания
         if (!isUnlocked) return
-        if (externalActivity) { endExternalActivity(); return }
+        if (pickerReturned) { pickerReturned = false; touch(); startIdle(); return }   // D-023
         val grace = prefs.backgroundGraceMs
         if (System.currentTimeMillis() - backgroundTs > grace) lock()
         else { touch(); startIdle() }

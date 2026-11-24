@@ -140,7 +140,8 @@ fun SettingsScreen(
     val sync = remember { SyncHelper(session, store) }
     var mergeMsg by remember { mutableStateOf<String?>(null) }
     val pickConflict = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        session.endExternalActivity()
+        // было: session.endExternalActivity()
+        session.notePickerReturned()   // D-023: и выбор, и отмена = «пикер вернулся»
         uri?.let {
             mergeMsg = when (sync.mergeConflict(it)) {
                 SyncHelper.Result.Ok -> "Слито успешно ✓"

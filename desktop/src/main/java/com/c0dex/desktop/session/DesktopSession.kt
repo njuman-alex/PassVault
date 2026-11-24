@@ -131,7 +131,12 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
         }
     }
 
-    fun onFocusLost() { backgroundTs = System.currentTimeMillis() }
+    fun onFocusLost() {
+        backgroundTs = System.currentTimeMillis()
+        // D-023: «сразу» (grace=0) = лок при потере фокуса. JFileChooser = «наше» окно
+        // (фокус-листенер в Main.kt: Window.getWindows() содержит его), исключение не нужно
+        if (prefs.graceMs == 0L) lock()
+    }
 
     fun onFocusGained() {
         if (!isUnlocked) return
