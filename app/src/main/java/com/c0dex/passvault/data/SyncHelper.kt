@@ -20,6 +20,7 @@ class SyncHelper(
         object ReadFail : Result()
         object ParseFail : Result()
         object WriteFail : Result()
+        object ForeignFile : Result()   // D-026
     }
 
     fun mergeConflict(other: Uri): Result {
@@ -31,6 +32,10 @@ class SyncHelper(
         } catch (e: Exception) {
             return Result.ParseFail
         }
+        // D-026: guard чужого/битого файла ДО merge
+        val foreign = session.withDek { dek -> VaultMerger.isForeign(dek, otherC) }
+            ?: return Result.Locked
+        if (foreign) return Result.ForeignFile
         val merged = session.withDek { dek -> VaultMerger.merge(dek, base, otherC) }
             ?: return Result.Locked
         return if (session.replaceContainer(merged)) Result.Ok else Result.WriteFail

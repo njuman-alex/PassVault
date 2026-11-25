@@ -150,6 +150,7 @@ fun SettingsScreen(
                 SyncHelper.Result.ReadFail -> "Не удалось прочитать копию"
                 SyncHelper.Result.ParseFail -> "Копия повреждена или не .qdex"
                 SyncHelper.Result.WriteFail -> "Не удалось записать результат"
+                SyncHelper.Result.ForeignFile -> "Копия из другого сейфа или все записи битые"
             }
         }
     }

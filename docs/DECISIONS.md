@@ -71,3 +71,8 @@
     оборачивают derive+unwrap в catch: Exception и OutOfMemoryError → UnlockResult.CorruptFile
     («Файл повреждён или не .qdex»), не краш. FORMAT v1.5 (§6), SESSION v1.2 (§6).
     wincli заморожен: капы ядра защищают его от OOM, но IAE там по-прежнему печатает stacktrace.
+- D-026: guard чужого/битого файла в merge (обе платформы): VaultMerger.isForeign(dek, b) =
+    у стороны есть записи, но ни одна не читается текущим DEK → SyncHelper.Result.ForeignFile /
+    сообщение «Копия из другого сейфа или все записи битые», merge НЕ выполняется и файл не
+    меняется. Пустая сторона и частично-битая своя сторона проходят (winner сам отдаёт
+    читаемой записи приоритет). wincli заморожен — поведение его merge не меняется. FORMAT v1.6 (§5).

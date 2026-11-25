@@ -24,6 +24,14 @@ object VaultMerger {
     fun merge(dek: ByteArray, a: VaultContainer, b: VaultContainer): VaultContainer =
         VaultContainer(a.kdf, a.wraps, mergeRecords(dek, a.records, b.records))
 
+    /**
+     * D-026: guard чужого/битого файла перед слиянием.
+     * true = у стороны есть записи, но НИ ОДНА не читается текущим DEK (чужой сейф / всё битое).
+     * Пустая сторона = false (валидный no-op merge); частично-битая своя сторона = false.
+     */
+    fun isForeign(dek: ByteArray, b: VaultContainer): Boolean =
+        b.records.isNotEmpty() && b.records.none { ContainerCodec.openPayload(dek, it) != null }
+
     fun mergeRecords(dek: ByteArray, a: List<RecordEnvelope>, b: List<RecordEnvelope>): List<RecordEnvelope> {
         val map = LinkedHashMap<String, RecordEnvelope>()
         for (e in a) map[e.id] = e

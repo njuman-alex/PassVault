@@ -7,6 +7,7 @@ import com.c0dex.core.format.RecordEnvelope
 import com.c0dex.core.format.RecordPayload
 import com.c0dex.core.format.VaultContainer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -102,5 +103,29 @@ class VaultMergerTest {
     fun outputSortedById() {
         val a = container(listOf(env("z", 1), env("a", 1), env("m", 1)))
         assertEquals(listOf("a", "m", "z"), ids(VaultMerger.merge(dek, a, container(emptyList()))))
+    }
+
+    @Test
+    fun foreignSideDetected() {
+        val otherDek = KeyHierarchy.newDek()
+        val b = container(listOf(ContainerCodec.sealPayload(otherDek, "f", RecordPayload("x", "p", 1L, 10))))
+        assertTrue(VaultMerger.isForeign(dek, b))
+    }
+
+    @Test
+    fun ownSideNotForeign() {
+        assertFalse(VaultMerger.isForeign(dek, container(listOf(env("x", 10)))))
+    }
+
+    @Test
+    fun emptySideNotForeign() {
+        assertFalse(VaultMerger.isForeign(dek, container(emptyList())))
+    }
+
+    @Test
+    fun partiallyCorruptOwnSideNotForeign() {
+        val good = env("x", 10)
+        val corrupt = good.copy(ct = good.ct.copyOf().also { it[0] = (it[0].toInt() xor 1).toByte() })
+        assertFalse(VaultMerger.isForeign(dek, container(listOf(corrupt, env("y", 5)))))
     }
 }

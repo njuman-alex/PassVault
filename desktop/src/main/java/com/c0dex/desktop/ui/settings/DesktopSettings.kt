@@ -100,12 +100,15 @@ fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Uni
                 } catch (e: Exception) {
                     mergeMsg = "Копия повреждена или не .qdex"; return@OutlinedButton
                 }
+                // D-026: guard чужого/битого файла ДО merge
+                val foreign = session.withDek { dek -> VaultMerger.isForeign(dek, other) }
                 val merged = session.withDek { dek ->
                     val base = session.currentContainer() ?: return@withDek null
                     VaultMerger.merge(dek, base, other)
                 }
                 mergeMsg = when {
-                    merged == null -> "Сначала разблокируйте vault"
+                    foreign == null || merged == null -> "Сначала разблокируйте vault"
+                    foreign -> "Копия из другого сейфа или все записи битые"
                     !session.replaceContainer(merged) -> "Не удалось записать результат"
                     else -> "Слито успешно ✓"
                 }
