@@ -108,6 +108,7 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
         if (old != null && diskText == ContainerCodec.serialize(old)) return c
         val disk = try { ContainerCodec.parse(diskText) } catch (e: Exception) { return null }
         val d = dek ?: return null
+        if (VaultMerger.isForeign(d, disk)) return null   // D-026: чужой диск не сливаем и не затираем
         return VaultMerger.merge(d, c, disk)
     }
 

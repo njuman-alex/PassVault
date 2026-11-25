@@ -54,7 +54,9 @@ class VaultFileStore(private val context: Context) {
             val f = backupFile(uri)
             val tmp = File.createTempFile(VaultFiles.TEMP_PREFIX, ".tmp", f.parentFile)
             tmp.writeText(text, Charsets.UTF_8)
-            tmp.renameTo(f)
+            val ok = tmp.renameTo(f)
+            if (!ok) tmp.delete()
+            ok
         } catch (e: Exception) {
             false
         }
