@@ -2,6 +2,7 @@
 
 package com.c0dex.passvault.ui.vault
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import com.c0dex.passvault.data.VaultRepository
 import com.c0dex.passvault.session.ClipboardHelper
 import com.c0dex.passvault.ui.generator.GeneratorDialog
@@ -141,6 +143,7 @@ fun DetailScreen(
     var editing by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var showGen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     DetailContent(
         state = DetailUiState(desc, pass, revealed, editing, missing = record == null, login = login),
@@ -154,6 +157,7 @@ fun DetailScreen(
         },
         onSave = {
             if (repo.update(id, desc, pass, login)) { record = repo.get(id); editing = false }
+            else Toast.makeText(context, "Не удалось сохранить — файл изменён снаружи или повреждён", Toast.LENGTH_SHORT).show()
         },
         onDelete = { confirmDelete = true },
         onCopy = { clipboard.copySensitive("password", pass) },
@@ -169,7 +173,11 @@ fun DetailScreen(
             title = { Text("Удалить запись?") },
             text = { Text("«${record?.description}» будет помечена удалённой (tombstone) и исчезнет из списка на всех устройствах после синка.") },
             confirmButton = {
-                Button(onClick = { confirmDelete = false; if (repo.delete(id)) onBack() }) { Text("Удалить") }
+                Button(onClick = {
+                    confirmDelete = false
+                    if (repo.delete(id)) onBack()
+                    else Toast.makeText(context, "Не удалось удалить — файл изменён снаружи или повреждён", Toast.LENGTH_SHORT).show()
+                }) { Text("Удалить") }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Отмена") } }
         )

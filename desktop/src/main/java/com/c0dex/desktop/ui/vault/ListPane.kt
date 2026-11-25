@@ -55,6 +55,7 @@ fun ListPane(
     var login by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var genTarget by remember { mutableStateOf<((String) -> Unit)?>(null) }
+    var ioError by remember { mutableStateOf<String?>(null) }   // пункт 1: фидбек провала сохранения
 
     LaunchedEffect(tick) { items = repo.list() }
 
@@ -102,11 +103,13 @@ fun ListPane(
             }
         }
         Spacer(Modifier.height(8.dp))
-        Button(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth()) { Text("Добавить") }
+        // было: Button(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth()) { Text("Добавить") }
+        Button(onClick = { ioError = null; showAdd = true }, modifier = Modifier.fillMaxWidth()) { Text("Добавить") }
     }
 
     if (showAdd) AlertDialog(
-        onDismissRequest = { showAdd = false },
+        // было: onDismissRequest = { showAdd = false },
+        onDismissRequest = { showAdd = false; ioError = null },
         title = { Text("Новый пароль") },
         text = {
             Column {
@@ -117,14 +120,25 @@ fun ListPane(
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Пароль") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 TextButton(onClick = { genTarget = { pass = it } }) { Text("🎲 Генератор…") }
+                // пункт 1: показываем причину провала, а не молчим
+                if (ioError != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(ioError!!, color = MaterialTheme.colorScheme.error)
+                }
             }
         },
         confirmButton = {
+            // было:
+            // Button(onClick = {
+            //     if (repo.add(desc, pass, login)) { showAdd = false; desc = ""; login = ""; pass = ""; tick++ }
+            // }, enabled = desc.isNotEmpty() && pass.isNotEmpty()) { Text("Сохранить") }
             Button(onClick = {
-                if (repo.add(desc, pass, login)) { showAdd = false; desc = ""; login = ""; pass = ""; tick++ }
+                if (repo.add(desc, pass, login)) { showAdd = false; desc = ""; login = ""; pass = ""; tick++; ioError = null }
+                else ioError = "Не удалось сохранить — файл изменён снаружи или повреждён"
             }, enabled = desc.isNotEmpty() && pass.isNotEmpty()) { Text("Сохранить") }
         },
-        dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Отмена") } }
+        // было: dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Отмена") } }
+        dismissButton = { TextButton(onClick = { showAdd = false; ioError = null }) { Text("Отмена") } }
     )
 
     genTarget?.let { target ->

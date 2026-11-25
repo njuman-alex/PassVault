@@ -46,17 +46,29 @@ fun DetailPane(
     var editing by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var showGen by remember { mutableStateOf(false) }
+    var ioError by remember { mutableStateOf<String?>(null) }   // пункт 1: фидбек провала сохранения/удаления
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.weight(1f))
             if (record != null) {
+                // было:
+                // TextButton(onClick = {
+                //     if (editing) { desc = record?.description ?: ""; pass = record?.password ?: ""; login = record?.login ?: "" }
+                //     editing = !editing
+                // }) { Text(if (editing) "Отмена" else "Изменить") }
                 TextButton(onClick = {
                     if (editing) { desc = record?.description ?: ""; pass = record?.password ?: ""; login = record?.login ?: "" }
                     editing = !editing
+                    ioError = null   // пункт 1: сброс ошибки при входе/выходе из правки
                 }) { Text(if (editing) "Отмена" else "Изменить") }
                 TextButton(onClick = { confirmDelete = true }) { Text("Удалить", color = MaterialTheme.colorScheme.error) }
             }
+        }
+        // пункт 1: причина провала видна сразу под шапкой
+        if (ioError != null) {
+            Text(ioError!!, color = MaterialTheme.colorScheme.error)
+            Spacer(Modifier.height(8.dp))
         }
         Spacer(Modifier.height(16.dp))
 
@@ -92,7 +104,11 @@ fun DetailPane(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { showGen = true }) { Text("🎲 Генератор…") }
                             Button(
-                                onClick = { if (repo.update(id, desc, pass, login)) { record = repo.get(id); editing = false } },
+                                // было: onClick = { if (repo.update(id, desc, pass, login)) { record = repo.get(id); editing = false } },
+                                onClick = {
+                                    if (repo.update(id, desc, pass, login)) { record = repo.get(id); editing = false; ioError = null }
+                                    else ioError = "Не удалось сохранить — файл изменён снаружи или повреждён"
+                                },
                                 enabled = desc.isNotEmpty() && pass.isNotEmpty()
                             ) { Text("Сохранить") }
                         }
@@ -110,7 +126,12 @@ fun DetailPane(
         title = { Text("Удалить запись?") },
         text = { Text("«${record?.description}» будет помечена удалённой (tombstone) и исчезнет из списка на всех устройствах после синка.") },
         confirmButton = {
-            Button(onClick = { confirmDelete = false; if (repo.delete(id)) onBack() }) { Text("Удалить") }
+            // было: Button(onClick = { confirmDelete = false; if (repo.delete(id)) onBack() }) { Text("Удалить") }
+            Button(onClick = {
+                confirmDelete = false
+                if (repo.delete(id)) onBack()
+                else ioError = "Не удалось удалить — файл изменён снаружи или повреждён"
+            }) { Text("Удалить") }
         },
         dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Отмена") } }
     )

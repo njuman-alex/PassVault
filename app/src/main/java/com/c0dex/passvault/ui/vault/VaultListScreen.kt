@@ -43,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.c0dex.core.util.TimeFormat
@@ -52,6 +53,7 @@ import com.c0dex.passvault.ui.common.HighlightedText
 import com.c0dex.passvault.ui.generator.GeneratorDialog
 import com.c0dex.passvault.ui.theme.PassVaultTheme
 import com.c0dex.passvault.session.ClipboardHelper
+import android.widget.Toast
 
 data class VaultListUiState(
     val items: List<VaultRepository.RecordView> = emptyList(),
@@ -146,6 +148,7 @@ fun VaultListScreen(
     var login by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var showGen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     LaunchedEffect(tick, sessionState) { items = repo.list() }
 
@@ -175,7 +178,10 @@ fun VaultListScreen(
             },
             confirmButton = {
                 Button(
-                    onClick = { if (repo.add(desc, pass, login)) { showAdd = false; desc = ""; login = ""; pass = ""; tick++ } },
+                    onClick = {
+                        if (repo.add(desc, pass, login)) { showAdd = false; desc = ""; login = ""; pass = ""; tick++ }
+                        else Toast.makeText(context, "Не удалось сохранить — файл изменён снаружи или повреждён", Toast.LENGTH_SHORT).show()
+                    },
                     enabled = desc.isNotEmpty() && pass.isNotEmpty()
                 ) { Text("Сохранить") }
             },
