@@ -51,6 +51,7 @@ import com.c0dex.passvault.session.SessionManager
 import com.c0dex.passvault.ui.common.HighlightedText
 import com.c0dex.passvault.ui.generator.GeneratorDialog
 import com.c0dex.passvault.ui.theme.PassVaultTheme
+import com.c0dex.passvault.session.ClipboardHelper
 
 data class VaultListUiState(
     val items: List<VaultRepository.RecordView> = emptyList(),
@@ -132,6 +133,7 @@ fun VaultListContent(
 fun VaultListScreen(
     session: SessionManager,
     repo: VaultRepository,
+    clipboard: ClipboardHelper,
     onOpen: (String) -> Unit,
     onSettings: () -> Unit = {}
 ) {
@@ -180,7 +182,11 @@ fun VaultListScreen(
             dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Отмена") } }
         )
     }
-    if (showGen) GeneratorDialog(onDismiss = { showGen = false }, onUse = { pass = it; showGen = false })
+    if (showGen) GeneratorDialog(
+        onDismiss = { showGen = false },
+        onUse = { pass = it; showGen = false },
+        onCopy = { clipboard.copySensitive("password", it) }
+    )
 }
 
 @Preview(showBackground = true, name = "List")

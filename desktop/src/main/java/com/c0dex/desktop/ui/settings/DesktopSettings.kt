@@ -26,12 +26,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.c0dex.core.format.ContainerCodec
-import com.c0dex.core.merge.VaultMerger
 import com.c0dex.desktop.data.DesktopPrefs
-import com.c0dex.desktop.io.VaultFileIO
+import com.c0dex.desktop.data.DesktopSync
 import com.c0dex.desktop.session.DesktopSession
-import javax.swing.JFileChooser
+import com.c0dex.desktop.ui.chooseFile
 
 private val IDLE_PRESETS = listOf(1, 5, 15, 30, 60, 0)
 private val CLIP_PRESETS = listOf(10, 30, 60, 0)
@@ -52,6 +50,7 @@ fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Uni
 
     //val vaultName = prefs.vaultPath?.let { Path.of(it).fileName.toString() }
     val vaultName = prefs.vaultPath
+    val sync = remember { DesktopSync(session) }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -93,25 +92,15 @@ fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Uni
         Text("Текущий: ${vaultName ?: "не выбран"}", color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedButton(onClick = { prefs.vaultPath = null; session.lock() }) { Text("Закрыть и выбрать другой файл") }
         OutlinedButton(onClick = {
-            val fc = JFileChooser()
-            if (fc.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                val other = try {
-                    ContainerCodec.parse(VaultFileIO.read(fc.selectedFile.toPath()) ?: error("read"))
-                } catch (e: Exception) {
-                    mergeMsg = "Копия повреждена или не .qdex"; return@OutlinedButton
-                }
-                // D-026: guard чужого/битого файла ДО merge
-                val foreign = session.withDek { dek -> VaultMerger.isForeign(dek, other) }
-                val merged = session.withDek { dek ->
-                    val base = session.currentContainer() ?: return@withDek null
-                    VaultMerger.merge(dek, base, other)
-                }
-                mergeMsg = when {
-                    foreign == null || merged == null -> "Сначала разблокируйте vault"
-                    foreign -> "Копия из другого сейфа или все записи битые"
-                    !session.replaceContainer(merged) -> "Не удалось записать результат"
-                    else -> "Слито успешно ✓"
-                }
+            // было: val fc = JFileChooser(); if (fc.showOpenDialog(null) == APPROVE_OPTION) { ...инлайн parse/merge... }
+            val p = chooseFile(save = false) ?: return@OutlinedButton
+            mergeMsg = when (sync.mergeConflict(p)) {
+                DesktopSync.Result.Ok -> "Слито успешно ✓"
+                DesktopSync.Result.Locked -> "Сначала разблокируйте vault"
+                DesktopSync.Result.ReadFail -> "Не удалось прочитать копию"
+                DesktopSync.Result.ParseFail -> "Копия повреждена или не .qdex"
+                DesktopSync.Result.ForeignFile -> "Копия из другого сейфа или все записи битые"
+                DesktopSync.Result.WriteFail -> "Не удалось записать результат"
             }
         }) { Text("Слить конфликт-копию…") }
         if (mergeMsg != null) Text(mergeMsg!!, color = MaterialTheme.colorScheme.onSurfaceVariant)

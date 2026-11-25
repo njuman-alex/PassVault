@@ -31,18 +31,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.c0dex.core.generator.PasswordGenerator
-import com.c0dex.passvault.data.SettingsPrefs
-import com.c0dex.passvault.session.ClipboardHelper
 import com.c0dex.passvault.ui.theme.PassVaultTheme
 
 data class GeneratorUiState(
@@ -148,11 +144,13 @@ private fun ToggleRow(label: String, checked: Boolean, onToggle: () -> Unit) {
 }
 
 @Composable
-fun GeneratorDialog(onDismiss: () -> Unit, onUse: (String) -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val prefs = remember { SettingsPrefs(context) }
-    val clipboard = remember { ClipboardHelper(context, prefs, scope) }
+// было: fun GeneratorDialog(onDismiss: () -> Unit, onUse: (String) -> Unit) {
+fun GeneratorDialog(onDismiss: () -> Unit, onUse: (String) -> Unit, onCopy: (String) -> Unit) {
+    // было:
+    // val context = LocalContext.current
+    // val scope = rememberCoroutineScope()
+    // val prefs = remember { SettingsPrefs(context) }
+    // val clipboard = remember { ClipboardHelper(context, prefs, scope) }
     val words = remember { runCatching { PasswordGenerator.Wordlists.effLarge() }.getOrDefault(emptyList()) }
 
     var state by remember { mutableStateOf(GeneratorUiState()) }
@@ -210,7 +208,8 @@ fun GeneratorDialog(onDismiss: () -> Unit, onUse: (String) -> Unit) {
                         onWordCount = { state = state.copy(wordCount = it) },
                         onSeparator = { state = state.copy(separator = it) },
                         onRegenerate = { nonce++ },
-                        onCopy = { clipboard.copySensitive("password", result) }
+                        // было: onCopy = { clipboard.copySensitive("password", result) }
+                        onCopy = { onCopy(result) }
                     )
                 }
                 Spacer(Modifier.height(8.dp))

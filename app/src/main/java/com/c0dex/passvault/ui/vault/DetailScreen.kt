@@ -174,7 +174,11 @@ fun DetailScreen(
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Отмена") } }
         )
     }
-    if (showGen) GeneratorDialog(onDismiss = { showGen = false }, onUse = { pass = it; editing = true; showGen = false })
+    if (showGen) GeneratorDialog(
+        onDismiss = { showGen = false },
+        onUse = { pass = it; editing = true; showGen = false },
+        onCopy = { clipboard.copySensitive("password", it) }
+    )
 }
 
 @Preview(showBackground = true, name = "View")

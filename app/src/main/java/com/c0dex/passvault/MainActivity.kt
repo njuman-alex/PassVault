@@ -87,7 +87,7 @@ class MainActivity : ComponentActivity() {
                         NavHost(navController = nav, startDestination = "list") {
                             composable("list") {
                                 VaultListScreen(
-                                    session, repo,
+                                    session, repo, clipboard,
                                     onOpen = { id -> nav.navigate("detail/$id") },
                                     onSettings = { nav.navigate("settings") }
                                 )

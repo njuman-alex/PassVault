@@ -13,8 +13,8 @@ android {
         applicationId = "com.c0dex.passvault"
         minSdk = 30
         targetSdk = 37
-        versionCode = 5
-        versionName = "5.5.5"
+        versionCode = 6
+        versionName = "5.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
