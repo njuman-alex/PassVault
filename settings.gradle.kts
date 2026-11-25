@@ -25,5 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "PassVault"
 include(":app")
 include(":core")
-include(":wincli")
 include(":desktop")
