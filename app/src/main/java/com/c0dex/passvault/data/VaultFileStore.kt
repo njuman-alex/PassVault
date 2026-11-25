@@ -2,10 +2,12 @@ package com.c0dex.passvault.data
 
 import android.content.Context
 import android.net.Uri
+import com.c0dex.core.format.ContainerCodec
 import com.c0dex.core.format.VaultFiles
 import com.c0dex.core.store.SafeWrite
 import java.io.File
 import java.security.MessageDigest
+import java.io.ByteArrayOutputStream
 
 /**
  * Файловый доступ к vault через SAF.
@@ -16,9 +18,46 @@ import java.security.MessageDigest
  */
 class VaultFileStore(private val context: Context) {
 
+    /*
+// СТАРАЯ ВЕРСИЯ:
+
+fun read(uri: Uri): String? = try {
+    context.contentResolver.openInputStream(uri)?.use {
+        it.readBytes().toString(Charsets.UTF_8)
+    }
+} catch (e: Exception) {
+    null
+}
+*/
+
+    // НОВАЯ ВЕРСИЯ:
+
     fun read(uri: Uri): String? = try {
-        context.contentResolver.openInputStream(uri)?.use {
-            it.readBytes().toString(Charsets.UTF_8)
+        context.contentResolver.openInputStream(uri)?.use { input ->
+
+            val maxBytes = ContainerCodec.MAX_CONTAINER_CHARS.toLong()
+
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+
+            var total = 0L
+
+            while (true) {
+                val count = input.read(buffer)
+
+                if (count < 0) break
+                if (count == 0) continue
+
+                total += count
+
+                if (total > maxBytes) {
+                    return null
+                }
+
+                output.write(buffer, 0, count)
+            }
+
+            output.toString(Charsets.UTF_8.name())
         }
     } catch (e: Exception) {
         null

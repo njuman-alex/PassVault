@@ -1,6 +1,7 @@
 package com.c0dex.core.format
 
 import com.c0dex.core.crypto.AesGcm
+import com.c0dex.core.crypto.Argon2Kdf
 import com.c0dex.core.crypto.KeyHierarchy
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -23,7 +24,8 @@ object ContainerCodec {
     const val KDF_ALG = "argon2id"
 
     // Защитные лимиты формата. Это не лимиты мастер-пароля.
-    private const val MAX_CONTAINER_CHARS = 64 * 1024 * 1024
+    //private const val MAX_CONTAINER_CHARS = 64 * 1024 * 1024
+    const val MAX_CONTAINER_CHARS = 64 * 1024 * 1024
     private const val MAX_WRAPS = 8
     private const val MAX_RECORDS = 100_000
     private const val MAX_ID_CHARS = 256
@@ -32,6 +34,7 @@ object ContainerCodec {
 
     private const val GCM_IV_BYTES = 12
     private const val GCM_TAG_BYTES = 16
+
     private const val MASTER_WRAP_CIPHERTEXT_BYTES =
         KeyHierarchy.DEK_SIZE_BYTES + GCM_TAG_BYTES
 
@@ -88,7 +91,166 @@ object ContainerCodec {
         val login: String = ""
     )
 
+    // ===== проверки модели перед записью =====
+
+    private fun validateKdf(
+        memoryKiB: Int,
+        iterations: Int,
+        parallelism: Int,
+        salt: ByteArray
+    ) {
+        require(salt.size == Argon2Kdf.SALT_SIZE_BYTES) {
+            "bad salt size: ${salt.size}"
+        }
+
+        require(memoryKiB > 0 &&
+                memoryKiB <= Argon2Kdf.MAX_MEMORY_KIB
+        ) {
+            "bad Argon2 memory: $memoryKiB"
+        }
+
+        require(iterations >= 1 &&
+                iterations <= Argon2Kdf.MAX_ITERATIONS
+        ) {
+            "bad Argon2 iterations: $iterations"
+        }
+
+        require(parallelism >= 1 &&
+                parallelism <= Argon2Kdf.MAX_PARALLELISM
+        ) {
+            "bad Argon2 parallelism: $parallelism"
+        }
+
+        require(memoryKiB.toLong() >= 8L * parallelism) {
+            "Argon2 memory is too small for parallelism"
+        }
+    }
+
+    private fun validateWraps(wraps: List<KeyHierarchy.Wrap>) {
+        require(wraps.isNotEmpty()) {
+            "no wraps"
+        }
+
+        require(wraps.size <= MAX_WRAPS) {
+            "too many wraps"
+        }
+
+        val masterWrapCount = wraps.count {
+            it.type == KeyHierarchy.WRAP_TYPE_MASTER
+        }
+
+        require(masterWrapCount == 1) {
+            "container must contain exactly one master wrap"
+        }
+
+        wraps.forEach { wrap ->
+            require(wrap.type.isNotBlank()) {
+                "empty wrap type"
+            }
+
+            require(wrap.type.length <= MAX_WRAP_TYPE_CHARS) {
+                "wrap type is too long"
+            }
+
+            require(wrap.iv.size == GCM_IV_BYTES) {
+                "bad wrap iv size: ${wrap.iv.size}"
+            }
+
+            require(wrap.ct.size >= GCM_TAG_BYTES) {
+                "wrap ciphertext is shorter than GCM tag"
+            }
+
+            require(wrap.ct.size <= MAX_RECORD_CIPHERTEXT_BYTES) {
+                "wrap ciphertext is too large"
+            }
+
+            if (wrap.type == KeyHierarchy.WRAP_TYPE_MASTER) {
+                require(wrap.ct.size == MASTER_WRAP_CIPHERTEXT_BYTES) {
+                    "bad master wrap ciphertext size: ${wrap.ct.size}"
+                }
+            }
+        }
+    }
+
+    private fun validateRecords(records: List<RecordEnvelope>) {
+        require(records.size <= MAX_RECORDS) {
+            "too many records"
+        }
+
+        records.forEach { record ->
+            require(record.id.isNotBlank()) {
+                "empty record id"
+            }
+
+            require(record.id.length <= MAX_ID_CHARS) {
+                "record id is too long"
+            }
+
+            require(record.iv.size == GCM_IV_BYTES) {
+                "bad record iv size: ${record.iv.size}"
+            }
+
+            require(record.ct.size >= GCM_TAG_BYTES) {
+                "record ciphertext is shorter than GCM tag"
+            }
+
+            require(record.ct.size <= MAX_RECORD_CIPHERTEXT_BYTES) {
+                "record ciphertext is too large"
+            }
+        }
+
+        require(records.map { it.id }.distinct().size == records.size) {
+            "duplicate record ids"
+        }
+    }
+
+    private fun validateContainer(c: VaultContainer) {
+        validateKdf(
+            c.kdf.memoryKiB,
+            c.kdf.iterations,
+            c.kdf.parallelism,
+            c.kdf.salt
+        )
+
+        validateWraps(c.wraps)
+        validateRecords(c.records)
+    }
+
     // ===== контейнер =====
+
+    fun serialize(c: VaultContainer): String {
+        // Проверяем модель до Base64-кодирования и формирования JSON.
+        validateContainer(c)
+
+        val result = json.encodeToString(
+            ContainerJson(
+                magic = MAGIC,
+                formatVersion = VERSION,
+                kdf = KdfJson(
+                    KDF_ALG,
+                    c.kdf.memoryKiB,
+                    c.kdf.iterations,
+                    c.kdf.parallelism,
+                    b64(c.kdf.salt)
+                ),
+                wraps = c.wraps.map {
+                    WrapJson(it.type, b64(it.iv), b64(it.ct))
+                },
+                records = c.records.map {
+                    EnvelopeJson(it.id, b64(it.iv), b64(it.ct))
+                }
+            )
+        )
+
+        require(result.length <= MAX_CONTAINER_CHARS) {
+            "container is too large"
+        }
+
+        return result
+    }
+
+    /*
+    // СТАРАЯ ВЕРСИЯ serialize() — без проверки модели и размера результата.
 
     fun serialize(c: VaultContainer): String = json.encodeToString(
         ContainerJson(
@@ -109,6 +271,7 @@ object ContainerCodec {
             }
         )
     )
+    */
 
     fun parse(text: String): VaultContainer {
         // Нельзя отдавать JSON-декодеру неограниченный вход.
@@ -116,28 +279,47 @@ object ContainerCodec {
             "container is too large"
         }
 
-        val w = json.decodeFromString(ContainerJson.serializer(), text)
+        val w = json.decodeFromString(
+            ContainerJson.serializer(),
+            text
+        )
 
         require(w.magic == MAGIC) {
             "bad magic: ${w.magic}"
         }
+
         require(w.formatVersion == VERSION) {
             "bad version: ${w.formatVersion}"
         }
+
         require(w.kdf.alg == KDF_ALG) {
             "bad kdf alg: ${w.kdf.alg}"
         }
 
         // Соль Argon2.
-        val salt = decodeBase64(w.kdf.salt, 16, "salt")
-        require(salt.size == 16) {
+        val salt = decodeBase64(
+            w.kdf.salt,
+            Argon2Kdf.SALT_SIZE_BYTES,
+            "salt"
+        )
+
+        require(salt.size == Argon2Kdf.SALT_SIZE_BYTES) {
             "bad salt size: ${salt.size}"
         }
+
+        // Параметры Argon2.
+        validateKdf(
+            w.kdf.memoryKiB,
+            w.kdf.iterations,
+            w.kdf.parallelism,
+            salt
+        )
 
         // Обёртки.
         require(w.wraps.isNotEmpty()) {
             "no wraps"
         }
+
         require(w.wraps.size <= MAX_WRAPS) {
             "too many wraps"
         }
@@ -145,14 +327,17 @@ object ContainerCodec {
         val masterWrapCount = w.wraps.count {
             it.type == KeyHierarchy.WRAP_TYPE_MASTER
         }
+
         require(masterWrapCount == 1) {
             "container must contain exactly one master wrap"
         }
 
         val wraps = w.wraps.map { item ->
+
             require(item.type.isNotBlank()) {
                 "empty wrap type"
             }
+
             require(item.type.length <= MAX_WRAP_TYPE_CHARS) {
                 "wrap type is too long"
             }
@@ -162,6 +347,7 @@ object ContainerCodec {
                 GCM_IV_BYTES,
                 "wrap iv"
             )
+
             require(iv.size == GCM_IV_BYTES) {
                 "bad wrap iv size: ${iv.size}"
             }
@@ -171,6 +357,7 @@ object ContainerCodec {
                 MAX_RECORD_CIPHERTEXT_BYTES,
                 "wrap ciphertext"
             )
+
             require(ct.size >= GCM_TAG_BYTES) {
                 "wrap ciphertext is shorter than GCM tag"
             }
@@ -192,9 +379,11 @@ object ContainerCodec {
         }
 
         val records = w.records.map { item ->
+
             require(item.id.isNotBlank()) {
                 "empty record id"
             }
+
             require(item.id.length <= MAX_ID_CHARS) {
                 "record id is too long"
             }
@@ -204,6 +393,7 @@ object ContainerCodec {
                 GCM_IV_BYTES,
                 "record iv"
             )
+
             require(iv.size == GCM_IV_BYTES) {
                 "bad record iv size: ${iv.size}"
             }
@@ -213,6 +403,7 @@ object ContainerCodec {
                 MAX_RECORD_CIPHERTEXT_BYTES,
                 "record ciphertext"
             )
+
             require(ct.size >= GCM_TAG_BYTES) {
                 "record ciphertext is shorter than GCM tag"
             }
@@ -238,20 +429,27 @@ object ContainerCodec {
 
     /*
     // СТАРАЯ ВЕРСИЯ parse() — оставлена для сравнения.
+
     fun parse(text: String): VaultContainer {
         val w = json.decodeFromString(ContainerJson.serializer(), text)
+
         require(w.magic == MAGIC) { "bad magic: ${w.magic}" }
         require(w.formatVersion == VERSION) { "bad version: ${w.formatVersion}" }
         require(w.kdf.alg == KDF_ALG) { "bad kdf alg: ${w.kdf.alg}" }
+
         val salt = unb64(w.kdf.salt)
         require(salt.size == 16) { "bad salt size: ${salt.size}" }
+
         require(w.wraps.isNotEmpty()) { "no wraps" }
+
         val records = w.records.map {
             RecordEnvelope(it.id, unb64(it.iv), unb64(it.ct))
         }
+
         require(records.map { it.id }.distinct().size == records.size) {
             "duplicate record ids"
         }
+
         return VaultContainer(
             kdf = KdfConfig(
                 w.kdf.memoryKiB,
@@ -274,9 +472,11 @@ object ContainerCodec {
         id: String,
         payload: RecordPayload
     ): RecordEnvelope {
+
         require(id.isNotBlank()) {
             "record id must not be blank"
         }
+
         require(id.length <= MAX_ID_CHARS) {
             "record id is too long"
         }
@@ -293,12 +493,23 @@ object ContainerCodec {
         ).toByteArray(Charsets.UTF_8)
 
         return try {
+            // GCM добавляет authentication tag к plaintext.
+            // Не допускаем создания ciphertext, который parse() отвергнет.
+            require(
+                pt.size.toLong() <=
+                        MAX_RECORD_CIPHERTEXT_BYTES.toLong() - GCM_TAG_BYTES
+            ) {
+                "record payload is too large"
+            }
+
             val enc = AesGcm.encrypt(
                 dek,
                 pt,
                 id.toByteArray(Charsets.UTF_8)
             )
+
             RecordEnvelope(id, enc.iv, enc.ciphertext)
+
         } finally {
             // Убираем временный plaintext даже при ошибке шифрования.
             pt.fill(0)
@@ -309,13 +520,16 @@ object ContainerCodec {
         dek: ByteArray,
         env: RecordEnvelope
     ): RecordPayload? {
+
         // Защита и от некорректных объектов, созданных не через parse().
         if (env.id.isBlank() || env.id.length > MAX_ID_CHARS) {
             return null
         }
+
         if (env.iv.size != GCM_IV_BYTES) {
             return null
         }
+
         if (env.ct.size < GCM_TAG_BYTES ||
             env.ct.size > MAX_RECORD_CIPHERTEXT_BYTES
         ) {
@@ -343,8 +557,10 @@ object ContainerCodec {
                 p.deleted,
                 p.login
             )
+
         } catch (e: Exception) {
             null
+
         } finally {
             // ByteArray очищаем и при успешном разборе, и при исключении.
             pt.fill(0)
@@ -353,6 +569,7 @@ object ContainerCodec {
 
     /*
     // СТАРАЯ ВЕРСИЯ sealPayload() — plaintext не очищался.
+
     fun sealPayload(
         dek: ByteArray,
         id: String,
@@ -374,10 +591,12 @@ object ContainerCodec {
             pt,
             id.toByteArray(Charsets.UTF_8)
         )
+
         return RecordEnvelope(id, enc.iv, enc.ciphertext)
     }
 
     // СТАРАЯ ВЕРСИЯ openPayload() — plaintext не очищался.
+
     fun openPayload(dek: ByteArray, env: RecordEnvelope): RecordPayload? {
         val pt = AesGcm.decrypt(
             dek,
@@ -391,6 +610,7 @@ object ContainerCodec {
                 PayloadJson.serializer(),
                 String(pt, Charsets.UTF_8)
             )
+
             RecordPayload(
                 p.description,
                 p.password,
@@ -399,6 +619,7 @@ object ContainerCodec {
                 p.deleted,
                 p.login
             )
+
         } catch (e: Exception) {
             null
         }
@@ -422,6 +643,7 @@ object ContainerCodec {
         maxDecodedBytes: Int,
         fieldName: String
     ): ByteArray {
+
         val maxEncodedChars =
             ((maxDecodedBytes.toLong() + 2L) / 3L) * 4L
 
@@ -431,6 +653,7 @@ object ContainerCodec {
 
         val decoded = try {
             b64dec.decode(encoded)
+
         } catch (e: IllegalArgumentException) {
             throw IllegalArgumentException(
                 "invalid Base64 in $fieldName",

@@ -57,10 +57,38 @@ object KeyHierarchy {
     }
 
     /** Разворачивает DEK. null при неверном KEK/типе/повреждении. */
+    /*
+// СТАРАЯ ВЕРСИЯ:
+
+fun unwrapDek(wrap: Wrap, kek: ByteArray): ByteArray? {
+    val dek = AesGcm.decrypt(
+        kek,
+        wrap.iv,
+        wrap.ct,
+        wrap.type.toByteArray(Charsets.UTF_8)
+    ) ?: return null
+
+    if (dek.size != DEK_SIZE_BYTES) return null
+
+    return dek
+}
+*/
+
+    // НОВАЯ ВЕРСИЯ:
+
     fun unwrapDek(wrap: Wrap, kek: ByteArray): ByteArray? {
-        val dek = AesGcm.decrypt(kek, wrap.iv, wrap.ct, wrap.type.toByteArray(Charsets.UTF_8))
-            ?: return null
-        if (dek.size != DEK_SIZE_BYTES) return null
+        val dek = AesGcm.decrypt(
+            kek,
+            wrap.iv,
+            wrap.ct,
+            wrap.type.toByteArray(Charsets.UTF_8)
+        ) ?: return null
+
+        if (dek.size != DEK_SIZE_BYTES) {
+            dek.fill(0)
+            return null
+        }
+
         return dek
     }
 

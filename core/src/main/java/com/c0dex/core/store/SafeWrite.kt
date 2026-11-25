@@ -17,13 +17,52 @@ object SafeWrite {
         fun write(text: String): Boolean
     }
 
+    /*
+// СТАРАЯ ВЕРСИЯ write():
+
+fun write(main: Target, backup: Target, text: String): Boolean {
+    if (!main.write(text)) return false
+    if (main.read() != text) {
+        backup.read()?.let { main.write(it) }
+        return false
+    }
+    backup.write(text)
+    return true
+}
+*/
+
+    // НОВАЯ ВЕРСИЯ:
     fun write(main: Target, backup: Target, text: String): Boolean {
-        if (!main.write(text)) return false
-        if (main.read() != text) {
-            backup.read()?.let { main.write(it) }
+
+        // Запоминаем последнюю хорошую копию до изменения основного файла.
+        val previousGood = backup.read()
+
+        fun rollback() {
+            previousGood?.let { old ->
+                main.write(old)
+                // Проверка результата отката.
+                main.read() == old
+            }
+        }
+
+        // Записываем основной файл.
+        if (!main.write(text)) {
+            rollback()
             return false
         }
-        backup.write(text)
+
+        // Проверяем основной файл перечитыванием.
+        if (main.read() != text) {
+            rollback()
+            return false
+        }
+
+        // Обновляем backup и проверяем его содержимое.
+        if (!backup.write(text) || backup.read() != text) {
+            rollback()
+            return false
+        }
+
         return true
     }
 

@@ -85,15 +85,55 @@ object Argon2Kdf {
         val generator = Argon2BytesGenerator()
         generator.init(argonParams)
 
+        /*
+// СТАРАЯ ВЕРСИЯ:
+
+val out = ByteArray(KEY_SIZE_BYTES)
+val buf = StandardCharsets.UTF_8.encode(CharBuffer.wrap(password))
+val pwdBytes = ByteArray(buf.remaining()).also(buf::get)
+
+try {
+    generator.generateBytes(pwdBytes, out, 0, out.size)
+} finally {
+    pwdBytes.fill(0)
+    if (buf.hasArray()) buf.array().fill(0)
+}
+
+return out
+*/
+
+        // НОВАЯ ВЕРСИЯ:
+
         val out = ByteArray(KEY_SIZE_BYTES)
-        val buf = StandardCharsets.UTF_8.encode(CharBuffer.wrap(password))
-        val pwdBytes = ByteArray(buf.remaining()).also(buf::get)
+
         try {
-            generator.generateBytes(pwdBytes, out, 0, out.size)
-        } finally {
-            pwdBytes.fill(0)
-            if (buf.hasArray()) buf.array().fill(0)
+            val buf = StandardCharsets.UTF_8.encode(
+                CharBuffer.wrap(password)
+            )
+
+            val pwdBytes = ByteArray(buf.remaining()).also(buf::get)
+
+            try {
+                generator.generateBytes(
+                    pwdBytes,
+                    out,
+                    0,
+                    out.size
+                )
+            } finally {
+                pwdBytes.fill(0)
+
+                if (buf.hasArray()) {
+                    buf.array().fill(0)
+                }
+            }
+
+            return out
+
+        } catch (e: Throwable) {
+            // Если генерация не удалась, не оставляем частичный ключ.
+            out.fill(0)
+            throw e
         }
-        return out
     }
 }
