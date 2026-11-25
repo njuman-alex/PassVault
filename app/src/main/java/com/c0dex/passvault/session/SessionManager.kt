@@ -135,6 +135,9 @@ class SessionManager(
     // ===== лок =====
 
     fun lock() {
+        // было: только dek/container/idleJob/state
+        expectPickerStop = false   // D-023-fix: лок сбрасывает висячие флаги пикера
+        pickerFlow = false
         dek?.fill(0)
         dek = null
         container = null
