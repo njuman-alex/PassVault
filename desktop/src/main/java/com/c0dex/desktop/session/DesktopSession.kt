@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.nio.file.Path
+import com.c0dex.core.merge.VaultMerger
 
 /** Сессия десктопа: порт SESSION.md без Android (фон = потеря фокуса окна). */
 class DesktopSession(private val scope: CoroutineScope, private val prefs: DesktopPrefs) {
@@ -92,10 +93,24 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
         _state.value = State.Locked
     }
 
+    /** D-024: merge-before-write (паритет с Android). */
+    private fun mergedForWrite(c: VaultContainer): VaultContainer? {
+        val p = prefs.vaultPath?.let(Path::of) ?: return null
+        val diskText = VaultFileIO.read(p) ?: return null
+        val old = container
+        if (old != null && diskText == ContainerCodec.serialize(old)) return c
+        val disk = try { ContainerCodec.parse(diskText) } catch (e: Exception) { return null }
+        val d = dek ?: return null
+        return VaultMerger.merge(d, c, disk)
+    }
+
     fun replaceContainer(c: VaultContainer): Boolean {
         val p = prefs.vaultPath?.let(Path::of) ?: return false
-        if (!VaultFileIO.writeAtomic(p, ContainerCodec.serialize(c))) return false
-        container = c; touch(); return true
+        // было: if (!VaultFileIO.writeAtomic(p, ContainerCodec.serialize(c))) return false
+        val merged = mergedForWrite(c) ?: return false   // D-024
+        if (!VaultFileIO.writeAtomic(p, ContainerCodec.serialize(merged))) return false
+        // было: container = c; touch(); return true
+        container = merged; touch(); return true
     }
 
     fun rotateMaster(newMaster: CharArray): Boolean {
@@ -112,8 +127,11 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
                 kdf = KdfConfig(params.memoryKiB, params.iterations, params.parallelism, salt),
                 wraps = c.wraps.map { if (it.type == KeyHierarchy.WRAP_TYPE_MASTER) wrap else it }
             )
-            if (!VaultFileIO.writeAtomic(p, ContainerCodec.serialize(newC))) return false
-            container = newC; return true
+            // было: if (!VaultFileIO.writeAtomic(p, ContainerCodec.serialize(newC))) return false
+            val merged = mergedForWrite(newC) ?: return false   // D-024
+            if (!VaultFileIO.writeAtomic(p, ContainerCodec.serialize(merged))) return false
+            // было: container = newC; return true
+            container = merged; return true
         } finally { newMaster.fill('\u0000') }
     }
 

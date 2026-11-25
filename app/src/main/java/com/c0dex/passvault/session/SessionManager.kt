@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.c0dex.core.merge.VaultMerger
 
 /**
  * Сессия и лок-модель (SESSION.md).
@@ -162,8 +163,11 @@ class SessionManager(
                 kdf = KdfConfig(params.memoryKiB, params.iterations, params.parallelism, salt),
                 wraps = c.wraps.map { if (it.type == KeyHierarchy.WRAP_TYPE_MASTER) newWrap else it }
             )
-            if (!store.write(uri, ContainerCodec.serialize(newC))) return false
-            container = newC
+            // было: if (!store.write(uri, ContainerCodec.serialize(newC))) return false
+            val merged = mergedForWrite(newC) ?: return false   // D-024
+            if (!store.write(uri, ContainerCodec.serialize(merged))) return false
+            // было: container = newC
+            container = merged
             return true
         } finally {
             newMaster.fill('\u0000')
@@ -201,11 +205,25 @@ class SessionManager(
         else -> 0L
     }
 
+    /** D-024: merge-before-write — внешние правки не затираем, битый файл не перезаписываем. */
+    private fun mergedForWrite(c: VaultContainer): VaultContainer? {
+        val uri = prefs.vaultUri?.let(Uri::parse) ?: return null
+        val diskText = store.read(uri) ?: return null
+        val old = container
+        if (old != null && diskText == ContainerCodec.serialize(old)) return c   // внешних правок нет — быстрый путь
+        val disk = try { ContainerCodec.parse(diskText) } catch (e: Exception) { return null }
+        val d = dek ?: return null
+        return VaultMerger.merge(d, c, disk)
+    }
+
     /** Записывает новый контейнер и обновляет сессию (для CRUD записей). */
     fun replaceContainer(c: VaultContainer): Boolean {
         val uri = prefs.vaultUri?.let(Uri::parse) ?: return false
-        if (!store.write(uri, ContainerCodec.serialize(c))) return false
-        container = c
+        // было: if (!store.write(uri, ContainerCodec.serialize(c))) return false
+        val merged = mergedForWrite(c) ?: return false   // D-024
+        if (!store.write(uri, ContainerCodec.serialize(merged))) return false
+        // было: container = c
+        container = merged
         touch()
         return true
     }
