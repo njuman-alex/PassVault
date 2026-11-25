@@ -55,7 +55,12 @@ class SessionManager(
     private var backgroundTs = 0L
     // было: private var externalActivity = false
     private var expectPickerStop = false   // D-023: ждём ровно один ON_STOP от нашего SAF-пикера
-    private var pickerReturned = false     // D-023: результат пикера доставлен (выбор ИЛИ отмена)
+    // было: private var pickerReturned = false     // D-023: результат пикера доставлен (выбор ИЛИ отмена)
+    private var pickerFlow = false   // D-023-fix: ON_STOP от пикера пойман, ждём возврат
+
+    private companion object {
+        const val PICKER_FLOW_MAX_MS = 10 * 60_000L   // кап против «HOME из пикера надолго»
+    }
 
     /** Доступ к DEK только в UNLOCKED; вызывающий не сохраняет и не затирает массив. */
     fun <T> withDek(block: (ByteArray) -> T): T? = dek?.let(block)
@@ -208,7 +213,8 @@ class SessionManager(
     fun beginExternalActivity() { expectPickerStop = true }
 
     // D-023: зовётся из callback лаунчера (выбор И отмена); заменяет endExternalActivity
-    fun notePickerReturned() { pickerReturned = true }
+    // было: fun notePickerReturned() { pickerReturned = true }
+    // D-023-fix: callback больше не участвует в решении (ON_START раньше onActivityResult)
 
     // было:
     //    fun endExternalActivity() {
@@ -218,7 +224,8 @@ class SessionManager(
 
     fun onBackground() {
         backgroundTs = System.currentTimeMillis()
-        if (expectPickerStop) { expectPickerStop = false; return }   // пикер открылся: не лочим, ts фиксируем
+        // было: if (expectPickerStop) { expectPickerStop = false; return }   // пикер открылся: не лочим, ts фиксируем
+        if (expectPickerStop) { expectPickerStop = false; pickerFlow = true; return }   // пикер открылся
         // D-023: «сразу» (grace=0) = лок В МОМЕНТ ухода, DEK затирается немедленно
         if (prefs.backgroundGraceMs == 0L) lock()
     }
@@ -227,7 +234,12 @@ class SessionManager(
     fun onForeground() {
         if (expectPickerStop) expectPickerStop = false   // пикер так и не открылся — сброс ожидания
         if (!isUnlocked) return
-        if (pickerReturned) { pickerReturned = false; touch(); startIdle(); return }   // D-023
+        // было: if (pickerReturned) { pickerReturned = false; touch(); startIdle(); return }   // D-023
+        if (pickerFlow) {
+            pickerFlow = false
+            // возврат из пикера: не лочим (callback merge ещё впереди); кап 10 мин закрывает HOME-из-пикера
+            if (System.currentTimeMillis() - backgroundTs <= PICKER_FLOW_MAX_MS) { touch(); startIdle(); return }
+        }
         val grace = prefs.backgroundGraceMs
         if (System.currentTimeMillis() - backgroundTs > grace) lock()
         else { touch(); startIdle() }

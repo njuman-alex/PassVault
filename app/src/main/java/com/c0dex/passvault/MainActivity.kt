@@ -62,7 +62,8 @@ class MainActivity : ComponentActivity() {
                 DisposableEffect(owner) {
                     val observer = LifecycleEventObserver { _, event ->
                         when (event) {
-                            Lifecycle.Event.ON_STOP -> session.onBackground()
+                            // было: Lifecycle.Event.ON_STOP -> session.onBackground()
+                            Lifecycle.Event.ON_STOP -> if (!isChangingConfigurations) session.onBackground()
                             Lifecycle.Event.ON_START -> session.onForeground()
                             else -> {}
                         }
