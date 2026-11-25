@@ -84,4 +84,21 @@ class Argon2KdfTest {
         Argon2Kdf.derive(password, light)
         assertArrayEquals(copy, password)
     }
+
+    @Test
+    fun absurdParamsThrowBeforeAllocation() {
+        assertThrows(IllegalArgumentException::class.java) {
+            Argon2Kdf.derive(password, light.copy(memoryKiB = Argon2Kdf.MAX_MEMORY_KIB + 1))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            Argon2Kdf.derive(password, light.copy(iterations = Argon2Kdf.MAX_ITERATIONS + 1))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            Argon2Kdf.derive(password, light.copy(parallelism = Argon2Kdf.MAX_PARALLELISM + 1))
+        }
+        // переполнение 8*parallelism на злом заголовке тоже отсекается
+        assertThrows(IllegalArgumentException::class.java) {
+            Argon2Kdf.derive(password, light.copy(parallelism = Int.MAX_VALUE))
+        }
+    }
 }

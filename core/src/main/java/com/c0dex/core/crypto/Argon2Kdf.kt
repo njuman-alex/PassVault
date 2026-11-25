@@ -29,6 +29,10 @@ object Argon2Kdf {
     const val DEFAULT_MEMORY_KIB = 65536   // 64 MiB
     const val DEFAULT_ITERATIONS = 3
     const val DEFAULT_PARALLELISM = 4
+    // D-025: верхние границы против битого/злого заголовка (дефолты сильно ниже)
+    const val MAX_MEMORY_KIB = 1_048_576   // 1 GiB
+    const val MAX_ITERATIONS = 100
+    const val MAX_PARALLELISM = 16
 
     private val random = SecureRandom()
 
@@ -61,6 +65,10 @@ object Argon2Kdf {
 
     /** Вывод KEK. Не мутирует переданный password. */
     fun derive(password: CharArray, params: Params): ByteArray {
+        // D-025: верхние границы первыми — чтобы 8*parallelism не переполнился на злом заголовке
+        require(params.parallelism <= MAX_PARALLELISM) { "parallelism must be <= $MAX_PARALLELISM" }
+        require(params.iterations <= MAX_ITERATIONS) { "iterations must be <= $MAX_ITERATIONS" }
+        require(params.memoryKiB <= MAX_MEMORY_KIB) { "memoryKiB must be <= $MAX_MEMORY_KIB" }
         require(params.iterations >= 1) { "iterations must be >= 1" }
         require(params.parallelism >= 1) { "parallelism must be >= 1" }
         require(params.memoryKiB >= 8 * params.parallelism) { "memoryKiB must be >= 8 * parallelism" }

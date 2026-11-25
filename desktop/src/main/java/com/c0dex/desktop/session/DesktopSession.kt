@@ -47,9 +47,16 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
             val text = VaultFileIO.read(path) ?: return UnlockResult.IoError
             val c = try { ContainerCodec.parse(text) } catch (e: Exception) { return UnlockResult.CorruptFile }
             val wrap = c.wraps.firstOrNull { it.type == KeyHierarchy.WRAP_TYPE_MASTER } ?: return UnlockResult.CorruptFile
-            val kek = Argon2Kdf.derive(master, c.kdf.toParams())
-            val d = KeyHierarchy.unwrapDek(wrap, kek)
-            kek.fill(0)
+            // D-025: битые/абсурдные параметры KDF и OOM = CorruptFile, не краш
+            val d = try {
+                val kek = Argon2Kdf.derive(master, c.kdf.toParams())
+                try { KeyHierarchy.unwrapDek(wrap, kek) } finally { kek.fill(0) }
+            } catch (e: Exception) {
+                return UnlockResult.CorruptFile
+            } catch (e: OutOfMemoryError) {
+                // капы не спасают от OOM на слабом устройстве — конвертируем в ошибку файла
+                return UnlockResult.CorruptFile
+            }
             if (d == null) {
                 prefs.failCount = prefs.failCount + 1
                 prefs.failUntilTs = System.currentTimeMillis() + delayFor(prefs.failCount)

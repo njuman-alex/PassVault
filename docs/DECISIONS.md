@@ -66,3 +66,8 @@
     иначе сливаем VaultMerger(наш, дисковый) и пишем результат; нечитаемый/битый дисковый файл
     запись отклоняет (не затираем). Внешние правки (шнурок/синк при открытом приложении) не
     теряются. FORMAT v1.4 (§5). wincli заморожен. Guard чужого DEK в merge — отдельно D-026.
+- D-025: верхние капы Argon2 в :core (MAX_MEMORY_KIB=1 GiB, MAX_ITERATIONS=100, MAX_PARALLELISM=16),
+    проверки до нижних границ (защита от переполнения 8*parallelism). Сессии обеих платформ
+    оборачивают derive+unwrap в catch: Exception и OutOfMemoryError → UnlockResult.CorruptFile
+    («Файл повреждён или не .qdex»), не краш. FORMAT v1.5 (§6), SESSION v1.2 (§6).
+    wincli заморожен: капы ядра защищают его от OOM, но IAE там по-прежнему печатает stacktrace.
