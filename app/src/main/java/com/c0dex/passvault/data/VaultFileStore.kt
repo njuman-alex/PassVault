@@ -35,7 +35,8 @@ fun read(uri: Uri): String? = try {
     fun read(uri: Uri): String? = try {
         context.contentResolver.openInputStream(uri)?.use { input ->
 
-            val maxBytes = ContainerCodec.MAX_CONTAINER_CHARS.toLong()
+            //val maxBytes = ContainerCodec.MAX_CONTAINER_CHARS.toLong()
+            val maxBytes = ContainerCodec.MAX_CONTAINER_BYTES.toLong()   // D-029
 
             val output = ByteArrayOutputStream()
             val buffer = ByteArray(8192)
@@ -99,6 +100,7 @@ fun read(uri: Uri): String? = try {
         } catch (e: Exception) {
             false
         }
+        override fun delete() { runCatching { backupFile(uri).delete() } }   // D-029
     }
 
     /** Пер-сейф backup: имя = хэш Uri, чтобы копия старого сейфа не предложила себя новому. */

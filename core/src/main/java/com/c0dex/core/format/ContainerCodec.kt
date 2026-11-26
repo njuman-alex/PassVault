@@ -26,6 +26,9 @@ object ContainerCodec {
     // Защитные лимиты формата. Это не лимиты мастер-пароля.
     //private const val MAX_CONTAINER_CHARS = 64 * 1024 * 1024
     const val MAX_CONTAINER_CHARS = 64 * 1024 * 1024
+
+    // D-029: байтовый кап для платформенного чтения (UTF-8 worst case = 4 байта/символ)
+    const val MAX_CONTAINER_BYTES = MAX_CONTAINER_CHARS * 4
     private const val MAX_WRAPS = 8
     private const val MAX_RECORDS = 100_000
     private const val MAX_ID_CHARS = 256
@@ -103,20 +106,23 @@ object ContainerCodec {
             "bad salt size: ${salt.size}"
         }
 
-        require(memoryKiB > 0 &&
-                memoryKiB <= Argon2Kdf.MAX_MEMORY_KIB
+        require(
+            memoryKiB > 0 &&
+                    memoryKiB <= Argon2Kdf.MAX_MEMORY_KIB
         ) {
             "bad Argon2 memory: $memoryKiB"
         }
 
-        require(iterations >= 1 &&
-                iterations <= Argon2Kdf.MAX_ITERATIONS
+        require(
+            iterations >= 1 &&
+                    iterations <= Argon2Kdf.MAX_ITERATIONS
         ) {
             "bad Argon2 iterations: $iterations"
         }
 
-        require(parallelism >= 1 &&
-                parallelism <= Argon2Kdf.MAX_PARALLELISM
+        require(
+            parallelism >= 1 &&
+                    parallelism <= Argon2Kdf.MAX_PARALLELISM
         ) {
             "bad Argon2 parallelism: $parallelism"
         }
@@ -631,8 +637,8 @@ object ContainerCodec {
     private fun b64(b: ByteArray): String =
         b64enc.encodeToString(b)
 
-    private fun unb64(s: String): ByteArray =
-        b64dec.decode(s)
+    // было (D-028 заменил на decodeBase64, больше не используется):
+    // private fun unb64(s: String): ByteArray = b64dec.decode(s)
 
     /**
      * Проверяет длину Base64 ДО декодирования, чтобы не выделять

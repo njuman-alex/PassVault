@@ -16,6 +16,8 @@ class SafeWriteTest {
 
         override fun read(): String? = content
 
+        override fun delete() { content = null }
+
         /*
 override fun write(text: String): Boolean {
     if (failAtomically) return false
@@ -142,5 +144,20 @@ override fun write(text: String): Boolean {
 
         assertFalse(SafeWrite.recover(main, backup))
         assertEquals("torn", main.content)
+    }
+
+    @Test fun tornBackupRestoresPreviousGood() {
+        val main = Fake("old"); val backup = Fake("old")
+        backup.torn = true
+        assertFalse(SafeWrite.write(main, backup, "new"))
+        assertEquals("old", main.content)
+        assertEquals("old", backup.content)
+    }
+    @Test fun tornFirstBackupDeleted() {
+        val main = Fake(); val backup = Fake()
+        backup.torn = true
+        assertFalse(SafeWrite.write(main, backup, "new"))
+        assertEquals("new", main.content)   // main проверен, откатывать не из чего
+        assertNull(backup.content)          // рваный первый backup удалён
     }
 }

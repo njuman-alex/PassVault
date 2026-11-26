@@ -15,6 +15,8 @@ object SafeWrite {
     interface Target {
         fun read(): String?
         fun write(text: String): Boolean
+        /** D-029: удалить копию (рваный первый backup). По умолчанию no-op. */
+        fun delete() {}
     }
 
     /*
@@ -59,6 +61,8 @@ fun write(main: Target, backup: Target, text: String): Boolean {
 
         // Обновляем backup и проверяем его содержимое.
         if (!backup.write(text) || backup.read() != text) {
+            // D-029: backup не стал last-good — возвращаем previousGood или удаляем рваный первый
+            if (previousGood != null) backup.write(previousGood) else backup.delete()
             rollback()
             return false
         }

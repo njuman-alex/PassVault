@@ -30,7 +30,7 @@ compose.desktop {
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe
             )
             packageName = "PassVault"
-            packageVersion = "5.6.0"
+            packageVersion = "5.7.0"
             description = "PassVault — офлайн-менеджер паролей (формат PMV3)"
             vendor = "c0dex"
             copyright = "© 2026 c0dex"
