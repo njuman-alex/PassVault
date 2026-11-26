@@ -16,7 +16,7 @@ fun chooseFile(save: Boolean): Path? {
     var p = fc.selectedFile.toPath()
     if (save) {
         val name = p.fileName.toString()
-        if (!name.endsWith(".$VAULT_EXT")) p = p.resolveSibling("$name.$VAULT_EXT")
+        if (!name.endsWith(".$VAULT_EXT", ignoreCase = true)) p = p.resolveSibling("$name.$VAULT_EXT")
     }
     return p
 }
