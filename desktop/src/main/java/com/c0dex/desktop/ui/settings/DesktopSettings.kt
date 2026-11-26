@@ -92,8 +92,8 @@ fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Uni
         Text("Текущий: ${vaultName ?: "не выбран"}", color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedButton(onClick = { prefs.vaultPath = null; session.lock() }) { Text("Закрыть и выбрать другой файл") }
         OutlinedButton(onClick = {
-            // было: val fc = JFileChooser(); if (fc.showOpenDialog(null) == APPROVE_OPTION) { ...инлайн parse/merge... }
-            val p = chooseFile(save = false) ?: return@OutlinedButton
+            // было: val p = chooseFile(save = false) ?: return@OutlinedButton
+            val p = session.withFileDialog { chooseFile(save = false) } ?: return@OutlinedButton
             mergeMsg = when (sync.mergeConflict(p)) {
                 DesktopSync.Result.Ok -> "Слито успешно ✓"
                 DesktopSync.Result.Locked -> "Сначала разблокируйте vault"

@@ -62,7 +62,8 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
         if (busy) return@click
         if (creating) {
             if (master != confirm) { error = "Пароли не совпадают"; return@click }
-            val p = chooseFile(save = true) ?: return@click
+            // было: val p = chooseFile(save = true) ?: return@click
+            val p = session.withFileDialog { chooseFile(save = true) } ?: return@click
             if (Files.exists(p)) { error = "Файл уже существует — выберите другое имя (create не перезаписывает сейф)"; return@click }
             val m = master.toCharArray()
             scope.launch {
@@ -160,7 +161,8 @@ fun LockPane(session: DesktopSession, prefs: DesktopPrefs) {
             Spacer(Modifier.height(24.dp))
             if (!creating) {
                 TextButton(
-                    onClick = { chooseFile(save = false)?.let { path = it.toString() } },
+                    // было: onClick = { chooseFile(save = false)?.let { path = it.toString() } },
+                    onClick = { session.withFileDialog { chooseFile(save = false) }?.let { path = it.toString() } },
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth()
                 ) {

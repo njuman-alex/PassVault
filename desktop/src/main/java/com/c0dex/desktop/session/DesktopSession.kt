@@ -35,8 +35,30 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
     private var container: VaultContainer? = null
     private var idleJob: Job? = null
     private var backgroundTs = 0L
+    private var fileDialogOpen = false   // D-030: наш модальный файловый диалог
+    private var dialogQuietUntil = 0L    // D-030-fix: хвост фокус-событий после закрытия
+    private companion object {
+        const val DIALOG_QUIET_MS = 750L
+    }
 
     fun <T> withDek(block: (ByteArray) -> T): T? = dek?.let(block)
+
+    /** D-030: обёртка вокруг chooseFile — потеря фокуса на время диалога не считается уходом. */
+    fun <T> withFileDialog(block: () -> T): T {
+        fileDialogOpen = true
+        try {
+            return block()
+        } finally {
+            fileDialogOpen = false
+            dialogQuietUntil = System.currentTimeMillis() + DIALOG_QUIET_MS   // D-030-fix
+            backgroundTs = System.currentTimeMillis()
+            if (isUnlocked) { touch(); startIdle() }
+        }
+    }
+
+    /** D-030-fix: мы внутри диалога или в его «хвосте» — фокус гуляет, сессию не трогаем. */
+    private fun inDialogFlow(): Boolean =
+        fileDialogOpen || System.currentTimeMillis() < dialogQuietUntil
     fun currentContainer(): VaultContainer? = container
 
     fun unlock(path: Path, master: CharArray): UnlockResult {
@@ -159,12 +181,14 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
 
     fun onFocusLost() {
         backgroundTs = System.currentTimeMillis()
-        // D-023: «сразу» (grace=0) = лок при потере фокуса. JFileChooser = «наше» окно
-        // (фокус-листенер в Main.kt: Window.getWindows() содержит его), исключение не нужно
+        // D-030: наш файловый диалог (transient focusedWindow=null) — не лочим, как SAF-пикер на Android
+        if (inDialogFlow()) return   // D-030-fix
         if (prefs.graceMs == 0L) lock()
     }
 
     fun onFocusGained() {
+        // D-030-fix: фокус ушёл в наш чузер — это не «возврат из фона»
+        if (inDialogFlow()) { backgroundTs = System.currentTimeMillis(); return }
         if (!isUnlocked) return
         if (System.currentTimeMillis() - backgroundTs > prefs.graceMs) lock()
         else { touch(); startIdle() }
