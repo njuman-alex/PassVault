@@ -1,7 +1,9 @@
+
 @file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.c0dex.passvault.ui.vault
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
@@ -48,12 +51,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.c0dex.core.util.TimeFormat
 import com.c0dex.passvault.data.VaultRepository
+import com.c0dex.passvault.session.ClipboardHelper
 import com.c0dex.passvault.session.SessionManager
 import com.c0dex.passvault.ui.common.HighlightedText
 import com.c0dex.passvault.ui.generator.GeneratorDialog
 import com.c0dex.passvault.ui.theme.PassVaultTheme
-import com.c0dex.passvault.session.ClipboardHelper
-import android.widget.Toast
+import kotlinx.coroutines.flow.collect
+import androidx.compose.runtime.snapshotFlow
 
 data class VaultListUiState(
     val items: List<VaultRepository.RecordView> = emptyList(),
@@ -69,61 +73,174 @@ fun VaultListContent(
     onLock: () -> Unit,
     onSettings: () -> Unit = {}
 ) {
+    val listState = rememberLazyListState()
+    var isAtBottom by remember { mutableStateOf(false) }
+
+    val filtered = state.items.filter {
+        it.description.contains(state.query, ignoreCase = true)
+    }
+
+    // Нижний режим включается при достижении конца списка.
+    // Сбрасывается только при фактической прокрутке вверх.
+    // Изменение высоты списка из-за появления кнопки не сбрасывает режим.
+    LaunchedEffect(listState, state.query, filtered.size) {
+        isAtBottom = false
+
+        var previousPosition: Pair<Int, Int>? = null
+
+        snapshotFlow {
+            Triple(
+                listState.firstVisibleItemIndex to
+                        listState.firstVisibleItemScrollOffset,
+                listState.canScrollForward,
+                listState.canScrollBackward
+            )
+        }.collect { current ->
+            val currentPosition = current.first
+            val previous = previousPosition
+
+            if (previous != null) {
+                val movedBackward =
+                    currentPosition.first < previous.first ||
+                            (
+                                    currentPosition.first == previous.first &&
+                                            currentPosition.second < previous.second
+                                    )
+
+                if (movedBackward) {
+                    isAtBottom = false
+                } else if (!current.second && current.third) {
+                    isAtBottom = true
+                }
+            } else if (!current.second && current.third) {
+                isAtBottom = true
+            }
+
+            previousPosition = currentPosition
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("PassVault") },
                 actions = {
-                    IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, "Настройки") }
-                    IconButton(onClick = onLock) { Icon(Icons.Default.Lock, "Заблокировать") }
+                    IconButton(onClick = onSettings) {
+                        Icon(Icons.Default.Settings, "Настройки")
+                    }
+                    IconButton(onClick = onLock) {
+                        Icon(Icons.Default.Lock, "Заблокировать")
+                    }
                 }
             )
         },
-        floatingActionButton = { FloatingActionButton(onClick = onAdd) { Icon(Icons.Default.Add, "Добавить") } }
+        floatingActionButton = {
+            if (!isAtBottom) {
+                FloatingActionButton(onClick = onAdd) {
+                    Icon(Icons.Default.Add, "Добавить")
+                }
+            }
+        }
     ) { pad ->
-        Column(Modifier.padding(pad).fillMaxSize()) {
-            val filtered = state.items.filter { it.description.contains(state.query, ignoreCase = true) }
+        Column(
+            Modifier
+                .padding(pad)
+                .fillMaxSize()
+        ) {
             Text(
-                if (state.query.isEmpty()) "Паролей в сейфе: ${state.items.size}"
-                else "Паролей в сейфе: ${state.items.size}, найдено: ${filtered.size}",
+                if (state.query.isEmpty()) {
+                    "Паролей в сейфе: ${state.items.size}"
+                } else {
+                    "Паролей в сейфе: ${state.items.size}, найдено: ${filtered.size}"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
             )
+
             OutlinedTextField(
                 value = state.query,
                 onValueChange = onQuery,
                 label = { Text("Поиск") },
-                leadingIcon = { Icon(Icons.Default.Search, null) },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, null)
+                },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
             )
-            //val filtered = state.items.filter { it.description.contains(state.query, ignoreCase = true) }
+
             if (filtered.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        if (state.items.isEmpty()) "Пока пусто — добавьте первый пароль" else "Ничего не найдено",
+                        if (state.items.isEmpty()) {
+                            "Пока пусто — добавьте первый пароль"
+                        } else {
+                            "Ничего не найдено"
+                        },
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    state = listState,
+                    modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(filtered, key = { it.id }) { r ->
-                        Card(modifier = Modifier.fillMaxWidth().clickable { onOpen(r.id) }) {
-                            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    //Text(r.description, style = MaterialTheme.typography.titleMedium)
-                                    HighlightedText(r.description, state.query, style = MaterialTheme.typography.titleMedium)
-                                    //Text("обновлено: ${r.updatedAt}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("обновлено: ${TimeFormat.human(r.updatedAt)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onOpen(r.id)
                                 }
-                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
+                        ) {
+                            Row(
+                                Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    HighlightedText(
+                                        r.description,
+                                        state.query,
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+
+                                    Text(
+                                        "обновлено: ${TimeFormat.human(r.updatedAt)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    null
+                                )
                             }
                         }
+                    }
+                }
+
+                // Кнопка находится после списка и не перекрывает записи.
+                // Она занимает место только тогда, когда пользователь внизу.
+                if (isAtBottom) {
+                    Button(
+                        onClick = onAdd,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text("Добавить")
                     }
                 }
             }
@@ -140,6 +257,7 @@ fun VaultListScreen(
     onSettings: () -> Unit = {}
 ) {
     val sessionState by session.state.collectAsState()
+
     var query by remember { mutableStateOf("") }
     var items by remember { mutableStateOf(repo.list()) }
     var tick by remember { mutableStateOf(0) }
@@ -148,9 +266,12 @@ fun VaultListScreen(
     var login by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var showGen by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
 
-    LaunchedEffect(tick, sessionState) { items = repo.list() }
+    LaunchedEffect(tick, sessionState) {
+        items = repo.list()
+    }
 
     VaultListContent(
         state = VaultListUiState(items, query),
@@ -163,36 +284,96 @@ fun VaultListScreen(
 
     if (showAdd) {
         AlertDialog(
-            onDismissRequest = { showAdd = false },
-            title = { Text("Новый пароль") },
+            onDismissRequest = {
+                showAdd = false
+            },
+            title = {
+                Text("Новый пароль")
+            },
             text = {
                 Column {
-                    OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Описание") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(
+                        value = desc,
+                        onValueChange = { desc = it },
+                        label = { Text("Описание") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                     Spacer(Modifier.height(8.dp))
+
                     // D-015: опциональный логин между описанием и паролем
-                    OutlinedTextField(value = login, onValueChange = { login = it }, label = { Text("Логин (необязательно)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(
+                        value = login,
+                        onValueChange = { login = it },
+                        label = { Text("Логин (необязательно)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                     Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Пароль") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    TextButton(onClick = { showGen = true }) { Text("🎲 Генератор…") }
+
+                    OutlinedTextField(
+                        value = pass,
+                        onValueChange = { pass = it },
+                        label = { Text("Пароль") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    TextButton(onClick = {
+                        showGen = true
+                    }) {
+                        Text("🎲 Генератор…")
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (repo.add(desc, pass, login)) { showAdd = false; desc = ""; login = ""; pass = ""; tick++ }
-                        else Toast.makeText(context, "Не удалось сохранить — файл изменён снаружи или повреждён", Toast.LENGTH_SHORT).show()
+                        if (repo.add(desc, pass, login)) {
+                            showAdd = false
+                            desc = ""
+                            login = ""
+                            pass = ""
+                            tick++
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Не удалось сохранить — файл изменён снаружи или повреждён",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     },
                     enabled = desc.isNotEmpty() && pass.isNotEmpty()
-                ) { Text("Сохранить") }
+                ) {
+                    Text("Сохранить")
+                }
             },
-            dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Отмена") } }
+            dismissButton = {
+                TextButton(onClick = {
+                    showAdd = false
+                }) {
+                    Text("Отмена")
+                }
+            }
         )
     }
-    if (showGen) GeneratorDialog(
-        onDismiss = { showGen = false },
-        onUse = { pass = it; showGen = false },
-        onCopy = { clipboard.copySensitive("password", it) }
-    )
+
+    if (showGen) {
+        GeneratorDialog(
+            onDismiss = {
+                showGen = false
+            },
+            onUse = {
+                pass = it
+                showGen = false
+            },
+            onCopy = {
+                clipboard.copySensitive("password", it)
+            }
+        )
+    }
 }
 
 @Preview(showBackground = true, name = "List")
@@ -205,14 +386,23 @@ private fun ListPreview() = PassVaultTheme {
                 VaultRepository.RecordView("2", "Банк", "y", 2L)
             )
         ),
-        onQuery = {}, onOpen = {}, onAdd = {}, onLock = {}
+        onQuery = {},
+        onOpen = {},
+        onAdd = {},
+        onLock = {}
     )
 }
 
 @Preview(showBackground = true, name = "Empty")
 @Composable
 private fun ListEmptyPreview() = PassVaultTheme {
-    VaultListContent(state = VaultListUiState(), onQuery = {}, onOpen = {}, onAdd = {}, onLock = {})
+    VaultListContent(
+        state = VaultListUiState(),
+        onQuery = {},
+        onOpen = {},
+        onAdd = {},
+        onLock = {}
+    )
 }
 
 @Preview(showBackground = true, name = "SearchHighlight")
@@ -226,6 +416,9 @@ private fun ListSearchPreview() = PassVaultTheme {
             ),
             query = "госу"
         ),
-        onQuery = {}, onOpen = {}, onAdd = {}, onLock = {}
+        onQuery = {},
+        onOpen = {},
+        onAdd = {},
+        onLock = {}
     )
 }
