@@ -1,5 +1,6 @@
 package com.c0dex.desktop.ui.vault
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -90,14 +91,20 @@ fun ListPane(
         Spacer(Modifier.height(8.dp))
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(filtered, key = { it.id }) { rec ->
-                Card(Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onOpen(rec.id)
+                        }
+                ) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             //Text(rec.description, style = MaterialTheme.typography.titleMedium)
                             HighlightedText(rec.description, query, style = MaterialTheme.typography.titleMedium)
                             Text(TimeFormat.human(rec.updatedAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        TextButton(onClick = { onOpen(rec.id) }) { Text("Открыть") }
+                        //TextButton(onClick = { onOpen(rec.id) }) { Text("Открыть") }
                     }
                 }
             }
