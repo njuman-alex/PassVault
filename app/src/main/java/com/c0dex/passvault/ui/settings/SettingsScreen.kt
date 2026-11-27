@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -180,6 +181,7 @@ fun SettingsScreen(
     )
 
     if (showMaster) {
+        DisposableEffect(Unit) { session.beginDialog(); onDispose { session.endDialog() } }   // D-031
         AlertDialog(
             onDismissRequest = { showMaster = false },
             title = { Text("Смена мастер-пароля") },

@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,7 +88,7 @@ fun ListPane(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("Поиск") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = query, onValueChange = { query = it; session.touch() }, label = { Text("Поиск") }, singleLine = true, modifier = Modifier.fillMaxWidth())   // D-031: ввод = активность
         Spacer(Modifier.height(8.dp))
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(filtered, key = { it.id }) { rec ->
@@ -114,41 +115,47 @@ fun ListPane(
         Button(onClick = { ioError = null; showAdd = true }, modifier = Modifier.fillMaxWidth()) { Text("Добавить") }
     }
 
-    if (showAdd) AlertDialog(
-        // было: onDismissRequest = { showAdd = false },
-        onDismissRequest = { showAdd = false; ioError = null },
-        title = { Text("Новый пароль") },
-        text = {
-            Column {
-                OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Описание") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
-                // D-015: опциональный логин между описанием и паролем
-                OutlinedTextField(value = login, onValueChange = { login = it }, label = { Text("Логин (необязательно)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Пароль") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                TextButton(onClick = { genTarget = { pass = it } }) { Text("🎲 Генератор…") }
-                // пункт 1: показываем причину провала, а не молчим
-                if (ioError != null) {
+    // было: if (showAdd) AlertDialog( ... )   — без фигурных скобок
+    // D-031-fix: DisposableEffect — САМОСТОЯТЕЛЬНЫЙ вызов рядом с AlertDialog, не его аргумент
+    if (showAdd) {
+        DisposableEffect(Unit) { session.beginDialog(); onDispose { session.endDialog() } }   // D-031
+        AlertDialog(
+            // было: onDismissRequest = { showAdd = false },
+            onDismissRequest = { showAdd = false; ioError = null },
+            title = { Text("Новый пароль") },
+            text = {
+                Column {
+                    OutlinedTextField(value = desc, onValueChange = { desc = it; session.touch() }, label = { Text("Описание") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
-                    Text(ioError!!, color = MaterialTheme.colorScheme.error)
+                    // D-015: опциональный логин между описанием и паролем
+                    OutlinedTextField(value = login, onValueChange = { login = it; session.touch() }, label = { Text("Логин (необязательно)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(value = pass, onValueChange = { pass = it; session.touch() }, label = { Text("Пароль") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    TextButton(onClick = { genTarget = { pass = it } }) { Text("🎲 Генератор…") }
+                    // пункт 1: показываем причину провала, а не молчим
+                    if (ioError != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(ioError!!, color = MaterialTheme.colorScheme.error)
+                    }
                 }
-            }
-        },
-        confirmButton = {
-            // было:
-            // Button(onClick = {
-            //     if (repo.add(desc, pass, login)) { showAdd = false; desc = ""; login = ""; pass = ""; tick++ }
-            // }, enabled = desc.isNotEmpty() && pass.isNotEmpty()) { Text("Сохранить") }
-            Button(onClick = {
-                if (repo.add(desc, pass, login)) { showAdd = false; desc = ""; login = ""; pass = ""; tick++; ioError = null }
-                else ioError = "Не удалось сохранить — файл изменён снаружи или повреждён"
-            }, enabled = desc.isNotEmpty() && pass.isNotEmpty()) { Text("Сохранить") }
-        },
-        // было: dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Отмена") } }
-        dismissButton = { TextButton(onClick = { showAdd = false; ioError = null }) { Text("Отмена") } }
-    )
+            },
+            confirmButton = {
+                // было:
+                // Button(onClick = {
+                //     if (repo.add(desc, pass, login)) { showAdd = false; desc = ""; login = ""; pass = ""; tick++ }
+                // }, enabled = desc.isNotEmpty() && pass.isNotEmpty()) { Text("Сохранить") }
+                Button(onClick = {
+                    if (repo.add(desc, pass, login)) { showAdd = false; desc = ""; login = ""; pass = ""; tick++; ioError = null }
+                    else ioError = "Не удалось сохранить — файл изменён снаружи или повреждён"
+                }, enabled = desc.isNotEmpty() && pass.isNotEmpty()) { Text("Сохранить") }
+            },
+            // было: dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Отмена") } }
+            dismissButton = { TextButton(onClick = { showAdd = false; ioError = null }) { Text("Отмена") } }
+        )
+    }   // <-- закрывающая скобка if, её раньше не было
 
     genTarget?.let { target ->
+        DisposableEffect(Unit) { session.beginDialog(); onDispose { session.endDialog() } }   // D-031: тут место верное (let — inline-лямбда)
         DesktopGenerator(
             onDismiss = { genTarget = null },
             onUse = { target(it); genTarget = null },

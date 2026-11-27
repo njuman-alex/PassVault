@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import com.c0dex.passvault.data.VaultRepository
 import com.c0dex.passvault.session.ClipboardHelper
+import com.c0dex.passvault.session.SessionManager
 import com.c0dex.passvault.ui.generator.GeneratorDialog
 import com.c0dex.passvault.ui.theme.PassVaultTheme
 
@@ -133,6 +135,7 @@ fun DetailScreen(
     id: String,
     repo: VaultRepository,
     clipboard: ClipboardHelper,
+    session: SessionManager,   // D-031
     onBack: () -> Unit
 ) {
     var record by remember(id) { mutableStateOf(repo.get(id)) }
@@ -147,9 +150,9 @@ fun DetailScreen(
 
     DetailContent(
         state = DetailUiState(desc, pass, revealed, editing, missing = record == null, login = login),
-        onDescription = { desc = it },
-        onPassword = { pass = it },
-        onLogin = { login = it },
+        onDescription = { desc = it; session.touch() }, // D-031
+        onPassword = { pass = it; session.touch() }, // D-031
+        onLogin = { login = it; session.touch() }, // D-031
         onToggleReveal = { revealed = !revealed },
         onToggleEdit = {
             if (editing) { desc = record?.description ?: ""; pass = record?.password ?: ""; login = record?.login ?: "" }
@@ -168,6 +171,7 @@ fun DetailScreen(
     )
 
     if (confirmDelete) {
+        DisposableEffect(Unit) { session.beginDialog(); onDispose { session.endDialog() } }   // D-031
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             title = { Text("Удалить запись?") },
@@ -182,11 +186,14 @@ fun DetailScreen(
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Отмена") } }
         )
     }
-    if (showGen) GeneratorDialog(
-        onDismiss = { showGen = false },
-        onUse = { pass = it; editing = true; showGen = false },
-        onCopy = { clipboard.copySensitive("password", it) }
-    )
+    if (showGen) {
+        DisposableEffect(Unit) { session.beginDialog(); onDispose { session.endDialog() } }   // D-031
+        GeneratorDialog(
+            onDismiss = { showGen = false },
+            onUse = { pass = it; editing = true; showGen = false },
+            onCopy = { clipboard.copySensitive("password", it) }
+        )
+    }
 }
 
 @Preview(showBackground = true, name = "View")

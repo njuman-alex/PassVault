@@ -18,7 +18,7 @@ object VaultFileIO {
 
     fun read(p: Path): String? = try {
         // D-029: паритет с Android — не тянем заведомо огромный файл в память
-        if (Files.size(p) > ContainerCodec.MAX_CONTAINER_BYTES.toLong()) null
+        if (Files.size(p) > ContainerCodec.MAX_READ_BYTES.toLong()) null
         else Files.readString(p, StandardCharsets.UTF_8)
     } catch (e: Exception) { null }
 

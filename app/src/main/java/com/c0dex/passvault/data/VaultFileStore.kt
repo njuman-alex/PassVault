@@ -36,7 +36,8 @@ fun read(uri: Uri): String? = try {
         context.contentResolver.openInputStream(uri)?.use { input ->
 
             //val maxBytes = ContainerCodec.MAX_CONTAINER_CHARS.toLong()
-            val maxBytes = ContainerCodec.MAX_CONTAINER_BYTES.toLong()   // D-029
+            //val maxBytes = ContainerCodec.MAX_CONTAINER_BYTES.toLong()   // D-029
+            val maxBytes = ContainerCodec.MAX_READ_BYTES.toLong()
 
             val output = ByteArrayOutputStream()
             val buffer = ByteArray(8192)

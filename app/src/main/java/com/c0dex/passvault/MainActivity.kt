@@ -30,6 +30,9 @@ import com.c0dex.passvault.ui.settings.SettingsScreen
 import com.c0dex.passvault.ui.theme.PassVaultTheme
 import com.c0dex.passvault.ui.vault.DetailScreen
 import com.c0dex.passvault.ui.vault.VaultListScreen
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /**
  * Single Activity + гейт по состоянию сессии (D-004).
@@ -52,7 +55,8 @@ class MainActivity : ComponentActivity() {
         val store = VaultFileStore(this)
         val session = SessionManager(store, prefs, lifecycleScope)
         val repo = VaultRepository(session)
-        val clipboard = ClipboardHelper(this, prefs, lifecycleScope)
+        // было: val clipboard = ClipboardHelper(this, prefs, lifecycleScope)
+        val clipboard = ClipboardHelper(this, prefs, CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate))   // D-032
 
         setContent {
             PassVaultTheme {
@@ -97,6 +101,7 @@ class MainActivity : ComponentActivity() {
                                     id = entry.arguments?.getString("id") ?: "",
                                     repo = repo,
                                     clipboard = clipboard,
+                                    session = session,   // D-031
                                     onBack = { nav.popBackStack() }
                                 )
                             }

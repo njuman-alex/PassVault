@@ -37,8 +37,14 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
     private var backgroundTs = 0L
     private var fileDialogOpen = false   // D-030: наш модальный файловый диалог
     private var dialogQuietUntil = 0L    // D-030-fix: хвост фокус-событий после закрытия
+    private var dialogDepth = 0        // D-031: вложенность наших диалогов (Добавление → Генератор)
+    private var dialogOpenedTs = 0L    // D-031: когда открылся первый (внешний) диалог
+    private var lastTouchWrite = 0L    // D-031-fix: троттлинг записи prefs (не на каждое событие)
+
     private companion object {
         const val DIALOG_QUIET_MS = 750L
+        const val DIALOG_MAX_MS = 10 * 60_000L   // D-031: кап «ушёл с открытым диалогом»
+        const val TOUCH_WRITE_MIN_MS = 1_000L    // D-031-fix: не чаще раза в секунду
     }
 
     fun <T> withDek(block: (ByteArray) -> T): T? = dek?.let(block)
@@ -46,12 +52,14 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
     /** D-030: обёртка вокруг chooseFile — потеря фокуса на время диалога не считается уходом. */
     fun <T> withFileDialog(block: () -> T): T {
         fileDialogOpen = true
+        beginDialog()   // D-031-fix: чузер тоже наш диалог — idle не лочит (кап 10 мин)
         try {
             return block()
         } finally {
             fileDialogOpen = false
             dialogQuietUntil = System.currentTimeMillis() + DIALOG_QUIET_MS   // D-030-fix
             backgroundTs = System.currentTimeMillis()
+            endDialog()   // D-031-fix: снимает счётчик; touch/startIdle внутри при depth==0
             if (isUnlocked) { touch(); startIdle() }
         }
     }
@@ -59,6 +67,7 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
     /** D-030-fix: мы внутри диалога или в его «хвосте» — фокус гуляет, сессию не трогаем. */
     private fun inDialogFlow(): Boolean =
         fileDialogOpen || System.currentTimeMillis() < dialogQuietUntil
+
     fun currentContainer(): VaultContainer? = container
 
     fun unlock(path: Path, master: CharArray): UnlockResult {
@@ -85,8 +94,8 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
                 return UnlockResult.WrongMaster
             }
             dek = d; container = c
-            prefs.failCount = 0;
-            prefs.failUntilTs = 0;
+            prefs.failCount = 0
+            prefs.failUntilTs = 0
             prefs.vaultPath = path.toString()
             _state.value = State.Unlocked
             touch(); startIdle()
@@ -104,21 +113,34 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
             val wrap = KeyHierarchy.wrapDek(d, kek)
             kek.fill(0)
             val c = VaultContainer(KdfConfig(params.memoryKiB, params.iterations, params.parallelism, salt), listOf(wrap), emptyList())
-            val err = VaultFileIO.writeAtomicMsg(path, ContainerCodec.serialize(c))
+            val text = serializeOrNull(c) ?: return "Не удалось сформировать контейнер"
+            val err = VaultFileIO.writeAtomicMsg(path, text)
             if (err != null) return err
-            dek = d; container = c
+            dek = d
+            container = c
             prefs.vaultPath = path.toString()
             prefs.failUntilTs = 0
             prefs.failCount = 0
             _state.value = State.Unlocked
-            touch(); startIdle()
+            touch()
+            startIdle()
             return null
         } finally { master.fill('\u0000') }
     }
 
     fun lock() {
-        dek?.fill(0); dek = null; container = null
-        idleJob?.cancel(); idleJob = null
+        dek?.fill(0)
+        dek = null
+        container = null
+        // было: dialogDepth = 0
+        // D-031-fix: лок гасит ВСЕ флаги диалогов и троттлинг (паритет с Android lock())
+        dialogDepth = 0
+        dialogOpenedTs = 0L
+        fileDialogOpen = false
+        dialogQuietUntil = 0L
+        lastTouchWrite = 0L   // первая активность после разлока пишется всегда
+        idleJob?.cancel()
+        idleJob = null
         _state.value = State.Locked
     }
 
@@ -128,6 +150,8 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
         val diskText = VaultFileIO.read(p) ?: return null
         val old = container
         if (old != null && diskText == ContainerCodec.serialize(old)) return c
+        val oldText = old?.let { serializeOrNull(it) }
+        if (oldText != null && diskText == oldText) return c
         val disk = try { ContainerCodec.parse(diskText) } catch (e: Exception) { return null }
         val d = dek ?: return null
         if (VaultMerger.isForeign(d, disk)) return null   // D-026: чужой диск не сливаем и не затираем
@@ -138,9 +162,12 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
         val p = prefs.vaultPath?.let(Path::of) ?: return false
         // было: if (!VaultFileIO.writeAtomic(p, ContainerCodec.serialize(c))) return false
         val merged = mergedForWrite(c) ?: return false   // D-024
-        if (!VaultFileIO.writeAtomic(p, ContainerCodec.serialize(merged))) return false
+        val text = serializeOrNull(merged) ?: return false
+        if (!VaultFileIO.writeAtomic(p, text)) return false
         // было: container = c; touch(); return true
-        container = merged; touch(); return true
+        container = merged
+        touch()
+        return true
     }
 
     fun rotateMaster(newMaster: CharArray): Boolean {
@@ -159,13 +186,22 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
             )
             // было: if (!VaultFileIO.writeAtomic(p, ContainerCodec.serialize(newC))) return false
             val merged = mergedForWrite(newC) ?: return false   // D-024
-            if (!VaultFileIO.writeAtomic(p, ContainerCodec.serialize(merged))) return false
+            val text = serializeOrNull(merged) ?: return false
+            if (!VaultFileIO.writeAtomic(p, text)) return false
             // было: container = newC; return true
-            container = merged; return true
+            container = merged
+            return true
         } finally { newMaster.fill('\u0000') }
     }
 
-    fun touch() { prefs.lastActiveTs = System.currentTimeMillis() }
+    // было: fun touch() { prefs.lastActiveTs = System.currentTimeMillis() }
+    // D-031-fix: touch зовётся на каждый тап/символ — пишем properties не чаще раза в секунду
+    fun touch() {
+        val now = System.currentTimeMillis()
+        if (now - lastTouchWrite < TOUCH_WRITE_MIN_MS) return
+        lastTouchWrite = now
+        prefs.lastActiveTs = now
+    }
 
     private fun startIdle() {
         idleJob?.cancel()
@@ -173,6 +209,8 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
             while (true) {
                 delay(1000)
                 if (!isUnlocked) break
+                // D-031: открытый наш диалог = активность (кап 10 мин)
+                if (dialogDepth > 0 && System.currentTimeMillis() - dialogOpenedTs <= DIALOG_MAX_MS) continue
                 val idle = prefs.idleMs
                 if (idle > 0 && System.currentTimeMillis() - prefs.lastActiveTs > idle) lock()
             }
@@ -191,10 +229,32 @@ class DesktopSession(private val scope: CoroutineScope, private val prefs: Deskt
         if (inDialogFlow()) { backgroundTs = System.currentTimeMillis(); return }
         if (!isUnlocked) return
         if (System.currentTimeMillis() - backgroundTs > prefs.graceMs) lock()
-        else { touch(); startIdle() }
+        else { touch()
+            startIdle()
+        }
     }
 
     private fun delayFor(fails: Int): Long = when {
         fails >= 20 -> 300_000L; fails >= 10 -> 30_000L; fails >= 5 -> 5_000L; else -> 0L
     }
+
+    // ===== D-031: открытый наш диалог = активность =====
+
+    fun beginDialog() {
+        if (dialogDepth == 0) dialogOpenedTs = System.currentTimeMillis()
+        dialogDepth++
+        touch()
+    }
+
+    fun endDialog() {
+        if (dialogDepth > 0) dialogDepth--
+        if (dialogDepth == 0 && isUnlocked) {
+            touch();
+            startIdle()
+        }
+    }
+
+    // D-032: serialize валидирует модель и может бросить — не роняем приложение
+    private fun serializeOrNull(c: VaultContainer): String? =
+        try { ContainerCodec.serialize(c) } catch (e: Exception) { null }
 }

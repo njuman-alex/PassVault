@@ -58,9 +58,14 @@ class SessionManager(
     private var expectPickerStop = false   // D-023: ждём ровно один ON_STOP от нашего SAF-пикера
     // было: private var pickerReturned = false     // D-023: результат пикера доставлен (выбор ИЛИ отмена)
     private var pickerFlow = false   // D-023-fix: ON_STOP от пикера пойман, ждём возврат
+    private var dialogDepth = 0        // D-031: вложенность наших диалогов (Добавление → Генератор)
+    private var dialogOpenedTs = 0L    // D-031: когда открылся первый (внешний) диалог
+    private var lastTouchWrite = 0L   // D-032: не пишем prefs на каждый тап/символ
 
     private companion object {
         const val PICKER_FLOW_MAX_MS = 10 * 60_000L   // кап против «HOME из пикера надолго»
+        const val DIALOG_MAX_MS = 10 * 60_000L   // D-031: кап «ушёл с открытым диалогом»
+        const val TOUCH_WRITE_MIN_MS = 1_000L   // D-032
     }
 
     /** Доступ к DEK только в UNLOCKED; вызывающий не сохраняет и не затирает массив. */
@@ -129,6 +134,8 @@ class SessionManager(
                 emptyList()
             )
             if (!store.write(uri, ContainerCodec.serialize(c))) return false
+            val text = serializeOrNull(c) ?: return false
+            if (!store.write(uri, text)) return false
             dek = d
             container = c
             prefs.vaultUri = uri.toString()
@@ -149,6 +156,9 @@ class SessionManager(
         // было: только dek/container/idleJob/state
         expectPickerStop = false   // D-023-fix: лок сбрасывает висячие флаги пикера
         pickerFlow = false
+        dialogDepth = 0   // D-031
+        dialogOpenedTs = 0L    // D-032: паритет с десктопом
+        lastTouchWrite = 0L    // первая активность после разлока пишется всегда
         dek?.fill(0)
         dek = null
         container = null
@@ -176,6 +186,8 @@ class SessionManager(
             // было: if (!store.write(uri, ContainerCodec.serialize(newC))) return false
             val merged = mergedForWrite(newC) ?: return false   // D-024
             if (!store.write(uri, ContainerCodec.serialize(merged))) return false
+            val text = serializeOrNull(merged) ?: return false
+            if (!store.write(uri, text)) return false
             // было: container = newC
             container = merged
             return true
@@ -186,12 +198,30 @@ class SessionManager(
 
     // ===== автолок =====
 
+    // было: prefs.lastActiveTs = System.currentTimeMillis()
     fun touch() {
-        prefs.lastActiveTs = System.currentTimeMillis()
+        val now = System.currentTimeMillis()
+        if (now - lastTouchWrite < TOUCH_WRITE_MIN_MS) return
+        lastTouchWrite = now
+        prefs.lastActiveTs = now
     }
 
+    // ===== D-031: открытый наш диалог = активность =====
+
+    fun beginDialog() {
+        if (dialogDepth == 0) dialogOpenedTs = System.currentTimeMillis()
+        dialogDepth++
+        touch()
+    }
+
+    fun endDialog() {
+        if (dialogDepth > 0) dialogDepth--
+        if (dialogDepth == 0 && isUnlocked) { touch(); startIdle() }
+    }
     fun checkIdle() {
         if (!isUnlocked) return
+        // D-031: пока открыт наш диалог — пользователь работает, idle не лочит (кап 10 мин)
+        if (dialogDepth > 0 && System.currentTimeMillis() - dialogOpenedTs <= DIALOG_MAX_MS) return
         val idle = prefs.idleTimeoutMs
         if (idle > 0 && System.currentTimeMillis() - prefs.lastActiveTs > idle) lock()
     }
@@ -221,6 +251,8 @@ class SessionManager(
         val diskText = store.read(uri) ?: return null
         val old = container
         if (old != null && diskText == ContainerCodec.serialize(old)) return c   // внешних правок нет — быстрый путь
+        val oldText = old?.let { serializeOrNull(it) }
+        if (oldText != null && diskText == oldText) return c
         val disk = try { ContainerCodec.parse(diskText) } catch (e: Exception) { return null }
         val d = dek ?: return null
         if (VaultMerger.isForeign(d, disk)) return null   // D-026: чужой диск не сливаем и не затираем
@@ -233,6 +265,8 @@ class SessionManager(
         // было: if (!store.write(uri, ContainerCodec.serialize(c))) return false
         val merged = mergedForWrite(c) ?: return false   // D-024
         if (!store.write(uri, ContainerCodec.serialize(merged))) return false
+        val text = serializeOrNull(merged) ?: return false
+        if (!store.write(uri, text)) return false
         // было: container = c
         container = merged
         touch()
@@ -276,4 +310,8 @@ class SessionManager(
         if (System.currentTimeMillis() - backgroundTs > grace) lock()
         else { touch(); startIdle() }
     }
+
+    // D-032: serialize валидирует модель и может бросить — не роняем приложение
+    private fun serializeOrNull(c: VaultContainer): String? =
+        try { ContainerCodec.serialize(c) } catch (e: Exception) { null }
 }

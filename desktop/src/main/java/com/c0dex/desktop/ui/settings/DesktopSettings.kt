@@ -19,6 +19,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect   // D-031
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,21 +71,24 @@ fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Uni
         Text("Автолок при бездействии", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             IDLE_PRESETS.forEach { m ->
-                FilterChip(selected = idleMin == m, onClick = { idleMin = m; prefs.idleMs = m * 60_000L }, label = { Text(if (m == 0) "∞" else "$m м") })
+                // было: onClick = { idleMin = m; prefs.idleMs = m * 60_000L }
+                FilterChip(selected = idleMin == m, onClick = { idleMin = m; prefs.idleMs = m * 60_000L; session.touch() }, label = { Text(if (m == 0) "∞" else "$m м") })   // D-031: клик = активность
             }
         }
 
         Text("Очистка буфера обмена", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CLIP_PRESETS.forEach { s ->
-                FilterChip(selected = clipSec == s, onClick = { clipSec = s; prefs.clipboardMs = s * 1_000L }, label = { Text(if (s == 0) "∞" else "$s с") })
+                // было: onClick = { clipSec = s; prefs.clipboardMs = s * 1_000L }
+                FilterChip(selected = clipSec == s, onClick = { clipSec = s; prefs.clipboardMs = s * 1_000L; session.touch() }, label = { Text(if (s == 0) "∞" else "$s с") })   // D-031
             }
         }
 
         Text("Лок при потере фокуса", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             GRACE_PRESETS.forEach { s ->
-                FilterChip(selected = graceSec == s, onClick = { graceSec = s; prefs.graceMs = s * 1_000L }, label = { Text(if (s == 0) "сразу" else "$s с") })
+                // было: onClick = { graceSec = s; prefs.graceMs = s * 1_000L }
+                FilterChip(selected = graceSec == s, onClick = { graceSec = s; prefs.graceMs = s * 1_000L; session.touch() }, label = { Text(if (s == 0) "сразу" else "$s с") })   // D-031
             }
         }
 
@@ -107,30 +111,36 @@ fun SettingsPane(session: DesktopSession, prefs: DesktopPrefs, onBack: () -> Uni
 
         Spacer(Modifier.height(8.dp))
 
-            //Button(onClick = onBack) { Text("← Назад") }
-            Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
-
+        //Button(onClick = onBack) { Text("← Назад") }
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
     }
 
-    if (showMaster) AlertDialog(
-        onDismissRequest = { showMaster = false },
-        title = { Text("Смена мастер-пароля") },
-        text = {
-            Column {
-                Text("Записи не перешифровываются — меняется только обёртка ключа.", style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = newM, onValueChange = { newM = it; masterError = null }, label = { Text("Новый мастер-пароль") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = confM, onValueChange = { confM = it; masterError = null }, label = { Text("Повторите") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
-                if (masterError != null) Text(masterError!!, color = MaterialTheme.colorScheme.error)
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                if (newM != confM) { masterError = "Пароли не совпадают"; return@Button }
-                if (session.rotateMaster(newM.toCharArray())) { showMaster = false; newM = ""; confM = "" } else masterError = "Не удалось сохранить"
-            }, enabled = newM.isNotEmpty() && confM.isNotEmpty()) { Text("Сменить") }
-        },
-        dismissButton = { TextButton(onClick = { showMaster = false }) { Text("Отмена") } }
-    )
+    // было: if (showMaster) AlertDialog( ... )   — без фигурных скобок
+    // D-031: DisposableEffect — САМОСТОЯТЕЛЬНЫЙ вызов рядом с AlertDialog, не его аргумент
+    if (showMaster) {
+        DisposableEffect(Unit) { session.beginDialog(); onDispose { session.endDialog() } }   // D-031
+        AlertDialog(
+            onDismissRequest = { showMaster = false },
+            title = { Text("Смена мастер-пароля") },
+            text = {
+                Column {
+                    Text("Записи не перешифровываются — меняется только обёртка ключа.", style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(8.dp))
+                    // было: onValueChange = { newM = it; masterError = null }
+                    OutlinedTextField(value = newM, onValueChange = { newM = it; masterError = null; session.touch() }, label = { Text("Новый мастер-пароль") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())   // D-031: ввод = активность
+                    Spacer(Modifier.height(8.dp))
+                    // было: onValueChange = { confM = it; masterError = null }
+                    OutlinedTextField(value = confM, onValueChange = { confM = it; masterError = null; session.touch() }, label = { Text("Повторите") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())   // D-031
+                    if (masterError != null) Text(masterError!!, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (newM != confM) { masterError = "Пароли не совпадают"; return@Button }
+                    if (session.rotateMaster(newM.toCharArray())) { showMaster = false; newM = ""; confM = "" } else masterError = "Не удалось сохранить"
+                }, enabled = newM.isNotEmpty() && confM.isNotEmpty()) { Text("Сменить") }
+            },
+            dismissButton = { TextButton(onClick = { showMaster = false }) { Text("Отмена") } }
+        )
+    }   // <-- закрывающая скобка if, её раньше не было
 }

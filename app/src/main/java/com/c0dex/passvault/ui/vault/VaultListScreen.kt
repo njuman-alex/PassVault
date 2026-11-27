@@ -58,6 +58,7 @@ import com.c0dex.passvault.ui.generator.GeneratorDialog
 import com.c0dex.passvault.ui.theme.PassVaultTheme
 import kotlinx.coroutines.flow.collect
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.DisposableEffect
 
 data class VaultListUiState(
     val items: List<VaultRepository.RecordView> = emptyList(),
@@ -83,7 +84,8 @@ fun VaultListContent(
     // Нижний режим включается при достижении конца списка.
     // Сбрасывается только при фактической прокрутке вверх.
     // Изменение высоты списка из-за появления кнопки не сбрасывает режим.
-    LaunchedEffect(listState, state.query, filtered.size) {
+    // было: LaunchedEffect(listState, state.query, filtered.size) {
+    LaunchedEffect(listState, state.query) {   // D-032: размер списка не сбрасывает режим
         isAtBottom = false
 
         var previousPosition: Pair<Int, Int>? = null
@@ -283,6 +285,7 @@ fun VaultListScreen(
     )
 
     if (showAdd) {
+        DisposableEffect(Unit) { session.beginDialog(); onDispose { session.endDialog() } }   // D-031
         AlertDialog(
             onDismissRequest = {
                 showAdd = false
@@ -361,17 +364,11 @@ fun VaultListScreen(
     }
 
     if (showGen) {
+        DisposableEffect(Unit) { session.beginDialog(); onDispose { session.endDialog() } }   // D-031
         GeneratorDialog(
-            onDismiss = {
-                showGen = false
-            },
-            onUse = {
-                pass = it
-                showGen = false
-            },
-            onCopy = {
-                clipboard.copySensitive("password", it)
-            }
+            onDismiss = { showGen = false },
+            onUse = { pass = it; showGen = false },
+            onCopy = { clipboard.copySensitive("password", it) }
         )
     }
 }

@@ -109,3 +109,19 @@ FORMAT.md обновляется до v1.7. SESSION.md остаётся v1.2.
   merge в DesktopSettings, create и выбор файла в LockPane. Alt-tab без диалога при
   grace=0 по-прежнему лочит немедленно. Android-pickerFlow (D-023) не меняется.
   FORMAT не меняется (модель сессии, не формат) — остаётся v1.8; SESSION.md → v1.3.
+- D-031: открытый диалог = активность. Compose Dialog — отдельное окно, трекер касаний
+    активити его не видит; на Android IME не шлёт KeyEvent. Решение в сессии, без новых файлов:
+    dialogDepth (вложенность Добавление → Генератор) + dialogOpenedTs, beginDialog()/endDialog(),
+    idle-проверка пропускается пока depth>0 и elapsed ≤ 10 мин; lock() сбрасывает depth.
+    UI сообщает открытие/закрытие через DisposableEffect во всех диалогах (добавление, генератор,
+    удаление, смена мастера); DetailScreen/DetailPane получают session и зовут touch() при вводе.
+    Десктоп: withFileDialog тоже считает чузер диалогом. FORMAT не меняется; SESSION → v1.4.
+- D-032: харденинг по итогам ревью. (1) touch() троттлится до 1 записи/сек на обеих платформах,
+  lock() сбрасывает троттлинг и dialogOpenedTs. (2) serialize() после D-028 валидирует модель и
+  может бросить — сессии оборачивают его в serializeOrNull и возвращают отказ записи вместо краша
+  (достижимо при union > MAX_RECORDS). (3) SafeWrite: откат не перезаписывает main, если он не
+  менялся; восстановление backup проверяется, при провале backup удаляется — last-good никогда
+  не мусор. (4) Практический кап чтения MAX_READ_BYTES = 16 MiB на обеих платформах (форматный
+  MAX_CONTAINER_BYTES остаётся как worst-case). (5) Android clipboard живёт в application-scope,
+  переживает пересоздание Activity. (6) Нижний «Добавить» не сбрасывается при изменении размера
+  списка. FORMAT → v1.9 (§6). Бамп 5.7.1.

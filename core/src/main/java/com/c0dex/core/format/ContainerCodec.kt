@@ -29,6 +29,8 @@ object ContainerCodec {
 
     // D-029: байтовый кап для платформенного чтения (UTF-8 worst case = 4 байта/символ)
     const val MAX_CONTAINER_BYTES = MAX_CONTAINER_CHARS * 4
+    // D-032: практический кап чтения (сейв на 100k записей ≪ 16 MiB); форматный worst-case ниже
+    const val MAX_READ_BYTES = 16 * 1024 * 1024
     private const val MAX_WRAPS = 8
     private const val MAX_RECORDS = 100_000
     private const val MAX_ID_CHARS = 256

@@ -13,6 +13,7 @@ class SafeWriteTest {
         var failWrite = false
         var failAtomically = false
         var torn = false
+        var writes = 0
 
         override fun read(): String? = content
 
@@ -37,6 +38,7 @@ override fun write(text: String): Boolean {
 
         // НОВАЯ ВЕРСИЯ:
         override fun write(text: String): Boolean {
+            writes++
             if (failAtomically) return false
 
             val tornNow = torn
@@ -54,6 +56,15 @@ override fun write(text: String): Boolean {
 
             return !failNow
         }
+    }
+
+    @Test
+    fun atomicFailureDoesNotRewriteGoodMain() {
+        val main = Fake("old"); val backup = Fake("old")
+        main.failAtomically = true
+        assertFalse(SafeWrite.write(main, backup, "new"))
+        assertEquals("old", main.content)
+        assertEquals(1, main.writes)   // только попытка записи, откатной не было
     }
 
     @Test

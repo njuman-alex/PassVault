@@ -17,6 +17,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect   // D-031
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.c0dex.desktop.data.DesktopRepository
 import com.c0dex.desktop.session.DesktopClipboard
+import com.c0dex.desktop.session.DesktopSession
 import com.c0dex.desktop.ui.generator.DesktopGenerator
 
 /** Экран записи (зеркало Android DetailScreen): просмотр / правка / удаление с подтверждением. */
@@ -36,6 +38,7 @@ fun DetailPane(
     id: String,
     repo: DesktopRepository,
     clipboard: DesktopClipboard,
+    session: DesktopSession,   // D-031
     onBack: () -> Unit
 ) {
     var record by remember(id) { mutableStateOf(repo.get(id)) }
@@ -81,17 +84,20 @@ fun DetailPane(
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
-                        value = desc, onValueChange = { desc = it }, label = { Text("Описание") },
+                        // было: value = desc, onValueChange = { desc = it }, label = { Text("Описание") },
+                        value = desc, onValueChange = { desc = it; session.touch() }, label = { Text("Описание") },   // D-031: ввод = активность
                         readOnly = !editing, singleLine = true, modifier = Modifier.fillMaxWidth()
                     )
                     // D-015: логин между описанием и парольным блоком
                     OutlinedTextField(
-                        value = login, onValueChange = { login = it }, label = { Text("Логин") },
+                        // было: value = login, onValueChange = { login = it }, label = { Text("Логин") },
+                        value = login, onValueChange = { login = it; session.touch() }, label = { Text("Логин") },   // D-031
                         readOnly = !editing, singleLine = true, modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedButton(onClick = { clipboard.copy(login) }, enabled = login.isNotEmpty()) { Text("📋 Копировать логин") }
                     OutlinedTextField(
-                        value = pass, onValueChange = { pass = it }, label = { Text("Пароль") },
+                        // было: value = pass, onValueChange = { pass = it }, label = { Text("Пароль") },
+                        value = pass, onValueChange = { pass = it; session.touch() }, label = { Text("Пароль") },   // D-031
                         readOnly = !editing, singleLine = true,
                         visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth()
@@ -121,24 +127,33 @@ fun DetailPane(
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Назад") }
     }
 
-    if (confirmDelete) AlertDialog(
-        onDismissRequest = { confirmDelete = false },
-        title = { Text("Удалить запись?") },
-        text = { Text("«${record?.description}» будет помечена удалённой (tombstone) и исчезнет из списка на всех устройствах после синка.") },
-        confirmButton = {
-            // было: Button(onClick = { confirmDelete = false; if (repo.delete(id)) onBack() }) { Text("Удалить") }
-            Button(onClick = {
-                confirmDelete = false
-                if (repo.delete(id)) onBack()
-                else ioError = "Не удалось удалить — файл изменён снаружи или повреждён"
-            }) { Text("Удалить") }
-        },
-        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Отмена") } }
-    )
+    // было: if (confirmDelete) AlertDialog( ... )   — без фигурных скобок
+    // D-031: DisposableEffect — отдельный вызов-сосед ДО AlertDialog, не его аргумент
+    if (confirmDelete) {
+        DisposableEffect(Unit) { session.beginDialog(); onDispose { session.endDialog() } }   // D-031
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Удалить запись?") },
+            text = { Text("«${record?.description}» будет помечена удалённой (tombstone) и исчезнет из списка на всех устройствах после синка.") },
+            confirmButton = {
+                // было: Button(onClick = { confirmDelete = false; if (repo.delete(id)) onBack() }) { Text("Удалить") }
+                Button(onClick = {
+                    confirmDelete = false
+                    if (repo.delete(id)) onBack()
+                    else ioError = "Не удалось удалить — файл изменён снаружи или повреждён"
+                }) { Text("Удалить") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Отмена") } }
+        )
+    }   // <-- закрывающая скобка if, её раньше не было
 
-    if (showGen) DesktopGenerator(
-        onDismiss = { showGen = false },
-        onUse = { pass = it; editing = true; showGen = false },
-        onCopy = { clipboard.copy(it) }
-    )
+    // было: if (showGen) DesktopGenerator( ... )   — без фигурных скобок
+    if (showGen) {
+        DisposableEffect(Unit) { session.beginDialog(); onDispose { session.endDialog() } }   // D-031
+        DesktopGenerator(
+            onDismiss = { showGen = false },
+            onUse = { pass = it; editing = true; showGen = false },
+            onCopy = { clipboard.copy(it) }
+        )
+    }   // <-- закрывающая скобка if
 }

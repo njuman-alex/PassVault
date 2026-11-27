@@ -39,12 +39,11 @@ fun write(main: Target, backup: Target, text: String): Boolean {
         // Запоминаем последнюю хорошую копию до изменения основного файла.
         val previousGood = backup.read()
 
+        // было: fun rollback() { previousGood?.let { old -> main.write(old); main.read() == old } }
         fun rollback() {
-            previousGood?.let { old ->
-                main.write(old)
-                // Проверка результата отката.
-                main.read() == old
-            }
+            val old = previousGood ?: return
+            if (main.read() == old) return   // D-032: main не менялся — лишняя truncate-запись не нужна
+            main.write(old)                  // best-effort; если порвётся — лечит кнопка recover
         }
 
         // Записываем основной файл.
@@ -62,7 +61,9 @@ fun write(main: Target, backup: Target, text: String): Boolean {
         // Обновляем backup и проверяем его содержимое.
         if (!backup.write(text) || backup.read() != text) {
             // D-029: backup не стал last-good — возвращаем previousGood или удаляем рваный первый
-            if (previousGood != null) backup.write(previousGood) else backup.delete()
+            if (previousGood != null) {
+                if (!backup.write(previousGood) || backup.read() != previousGood) backup.delete()   // D-032
+            } else backup.delete()
             rollback()
             return false
         }

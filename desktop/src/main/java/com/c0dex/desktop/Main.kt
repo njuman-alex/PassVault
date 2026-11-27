@@ -76,7 +76,7 @@ fun main() = application {
                 val openId = detailId
                 when {
                     st is DesktopSession.State.Locked -> LockPane(session, prefs)
-                    openId != null -> DetailPane(openId, repo, clipboard, onBack = { detailId = null })
+                    openId != null -> DetailPane(openId, repo, clipboard, session = session, onBack = { detailId = null })
                     showSettings -> SettingsPane(session, prefs, onBack = { showSettings = false })
                     else -> ListPane(session, repo, clipboard, onOpen = { detailId = it }, onSettings = { showSettings = true })
                 }
