@@ -61,9 +61,20 @@ fun write(main: Target, backup: Target, text: String): Boolean {
         // Обновляем backup и проверяем его содержимое.
         if (!backup.write(text) || backup.read() != text) {
             // D-029: backup не стал last-good — возвращаем previousGood или удаляем рваный первый
+            //D-032
+            // было: if (previousGood != null) backup.write(previousGood) else backup.delete()
             if (previousGood != null) {
-                if (!backup.write(previousGood) || backup.read() != previousGood) backup.delete()   // D-032
-            } else backup.delete()
+                if (!backup.write(previousGood) || backup.read() != previousGood) {
+                    // Удаляем backup только если старая копия действительно потеряна.
+                    // При атомарном отказе записи прежнее содержимое остаётся целым.
+                    if (backup.read() != previousGood) {
+                        backup.delete()
+                    }
+                }
+            } else {
+                // Первой хорошей копии не было — удаляем возможный рваный файл.
+                backup.delete()
+            }
             rollback()
             return false
         }
