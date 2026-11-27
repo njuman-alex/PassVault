@@ -133,7 +133,11 @@ class SessionManager(
                 listOf(wrap),
                 emptyList()
             )
-            if (!store.write(uri, ContainerCodec.serialize(c))) return false
+            // было:
+            // if (!store.write(uri, ContainerCodec.serialize(c))) return false
+            // val text = serializeOrNull(c) ?: return false
+            // if (!store.write(uri, text)) return false
+            // D-032: одна защищённая сериализация и одна запись.
             val text = serializeOrNull(c) ?: return false
             if (!store.write(uri, text)) return false
             dek = d
@@ -185,7 +189,11 @@ class SessionManager(
             )
             // было: if (!store.write(uri, ContainerCodec.serialize(newC))) return false
             val merged = mergedForWrite(newC) ?: return false   // D-024
-            if (!store.write(uri, ContainerCodec.serialize(merged))) return false
+            // было:
+            // if (!store.write(uri, ContainerCodec.serialize(merged))) return false
+            // val text = serializeOrNull(merged) ?: return false
+            // if (!store.write(uri, text)) return false
+            // D-032: одна защищённая сериализация и одна запись.
             val text = serializeOrNull(merged) ?: return false
             if (!store.write(uri, text)) return false
             // было: container = newC
@@ -264,7 +272,11 @@ class SessionManager(
         val uri = prefs.vaultUri?.let(Uri::parse) ?: return false
         // было: if (!store.write(uri, ContainerCodec.serialize(c))) return false
         val merged = mergedForWrite(c) ?: return false   // D-024
-        if (!store.write(uri, ContainerCodec.serialize(merged))) return false
+        // было:
+        // if (!store.write(uri, ContainerCodec.serialize(merged))) return false
+        // val text = serializeOrNull(merged) ?: return false
+        // if (!store.write(uri, text)) return false
+        // D-032: одна защищённая сериализация и одна запись.
         val text = serializeOrNull(merged) ?: return false
         if (!store.write(uri, text)) return false
         // было: container = c

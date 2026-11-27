@@ -14,27 +14,14 @@ class SafeWriteTest {
         var failAtomically = false
         var torn = false
         var writes = 0
+        var failRead = false
 
-        override fun read(): String? = content
+        override fun read(): String? {
+            if (failRead) throw IllegalStateException("read failed")
+            return content
+        }
 
         override fun delete() { content = null }
-
-        /*
-override fun write(text: String): Boolean {
-    if (failAtomically) return false
-
-    val tornNow = torn
-    torn = false
-
-    content = if (tornNow || failWrite) {
-        text.take(text.length / 2)
-    } else {
-        text
-    }
-
-    return !failWrite
-}
-*/
 
         // НОВАЯ ВЕРСИЯ:
         override fun write(text: String): Boolean {
@@ -137,6 +124,51 @@ override fun write(text: String): Boolean {
         // Старой копии нет, но основной файл уже проверен.
         assertEquals("new", main.content)
         assertNull(backup.content)
+    }
+
+    @Test
+    fun unreadableMainAbortsBeforeAnyWrite() {
+        val main = Fake("current")
+        val backup = Fake("stale")
+        main.failRead = true
+
+        assertFalse(SafeWrite.write(main, backup, "new"))
+        assertEquals("current", main.content)
+        assertEquals("stale", backup.content)
+        assertEquals(0, main.writes)
+    }
+
+    @Test
+    fun existingMainWithoutBackupIsSavedBeforeTornWrite() {
+        val main = Fake("current")
+        val backup = Fake()
+        main.torn = true
+
+        assertFalse(SafeWrite.write(main, backup, "new"))
+        assertEquals("current", main.content)
+        assertEquals("current", backup.content)
+    }
+
+    @Test
+    fun staleBackupIsReplacedWithCurrentMainBeforeWrite() {
+        val main = Fake("latest-main")
+        val backup = Fake("stale-backup")
+        main.torn = true
+
+        assertFalse(SafeWrite.write(main, backup, "new"))
+        assertEquals("latest-main", main.content)
+        assertEquals("latest-main", backup.content)
+    }
+
+    @Test
+    fun cannotPrepareCurrentMainBackupSoMainIsNotTouched() {
+        val main = Fake("current")
+        val backup = Fake()
+        backup.failAtomically = true
+
+        assertFalse(SafeWrite.write(main, backup, "new"))
+        assertEquals("current", main.content)
+        assertEquals(0, main.writes)
     }
 
     @Test

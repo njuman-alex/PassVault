@@ -8,6 +8,7 @@ import com.c0dex.core.store.SafeWrite
 import java.io.File
 import java.security.MessageDigest
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 
 /**
  * Файловый доступ к vault через SAF.
@@ -65,6 +66,28 @@ fun read(uri: Uri): String? = try {
         null
     }
 
+    // Строгое чтение для SafeWrite: null здесь не означает ошибку чтения.
+    // Если Uri недоступен/поток не открылся/превышен лимит, запись отменяется ДО truncate.
+    private fun readForSafeWrite(uri: Uri): String? {
+        val input = context.contentResolver.openInputStream(uri)
+            ?: throw IOException("Не удалось открыть основной файл для чтения")
+        input.use {
+            val maxBytes = ContainerCodec.MAX_READ_BYTES.toLong()
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+            var total = 0L
+            while (true) {
+                val count = it.read(buffer)
+                if (count < 0) break
+                if (count == 0) continue
+                total += count
+                if (total > maxBytes) throw IOException("Основной файл превышает лимит чтения")
+                output.write(buffer, 0, count)
+            }
+            return output.toString(Charsets.UTF_8.name())
+        }
+    }
+
     fun write(uri: Uri, text: String): Boolean =
         SafeWrite.write(mainTarget(uri), backupTarget(uri), text)
 
@@ -81,7 +104,7 @@ fun read(uri: Uri): String? = try {
     }
 
     private fun mainTarget(uri: Uri) = object : SafeWrite.Target {
-        override fun read(): String? = this@VaultFileStore.read(uri)
+        override fun read(): String? = this@VaultFileStore.readForSafeWrite(uri)
         override fun write(text: String): Boolean = rawWrite(uri, text)
     }
 

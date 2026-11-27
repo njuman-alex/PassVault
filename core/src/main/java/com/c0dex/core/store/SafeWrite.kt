@@ -3,8 +3,9 @@ package com.c0dex.core.store
 /**
  * Crash-safe протокол записи сейфа (D-022), платформенно-нейтральный.
  *
- * write: main.write -> verify перечитыванием -> backup обновляется;
- *        verify fail -> откат main из last-good backup, false.
+ * write: текущий main сначала сверяется с backup и при необходимости
+ *        сохраняется туда; затем main.write -> verify -> backup обновляется;
+ *        verify fail -> откат main из актуальной предыдущей копии, false.
  * recover: явное восстановление main из backup (кнопка на лок-скрине).
  *
  * Атомарность backup обеспечивает платформа (приватная папка = tmp+rename);
@@ -36,44 +37,75 @@ fun write(main: Target, backup: Target, text: String): Boolean {
     // НОВАЯ ВЕРСИЯ:
     fun write(main: Target, backup: Target, text: String): Boolean {
 
-        // Запоминаем последнюю хорошую копию до изменения основного файла.
-        val previousGood = backup.read()
+        // Сначала читаем именно текущее содержимое main.
+        // Backup может отсутствовать или относиться к более старой версии файла.
+        // Ошибка чтения main не должна трактоваться как отсутствие файла.
+        // Платформенный Target обязан бросить исключение, если не смог прочитать Uri.
+        val currentMain = try { main.read() } catch (e: Exception) { return false }
+        val existingBackup = try { backup.read() } catch (e: Exception) { null }
 
-        // было: fun rollback() { previousGood?.let { old -> main.write(old); main.read() == old } }
-        fun rollback() {
-            val old = previousGood ?: return
-            if (main.read() == old) return   // D-032: main не менялся — лишняя truncate-запись не нужна
-            main.write(old)                  // best-effort; если порвётся — лечит кнопка recover
+        // Для существующего main готовим актуальную точку отката ДО его изменения.
+        // Если backup отсутствует/устарел, обновляем его текущим содержимым main
+        // и обязательно проверяем результат. При неудаче main не трогаем.
+        val previousGood = if (currentMain != null) {
+            if (existingBackup != currentMain) {
+                val backupPrepared = try {
+                    backup.write(currentMain) && backup.read() == currentMain
+                } catch (e: Exception) {
+                    false
+                }
+                if (!backupPrepared) return false
+            }
+            currentMain
+        } else {
+            // Новый/пустой main: сохраняем прежний fallback, если он имеется.
+            existingBackup
         }
 
-        // Записываем основной файл.
-        if (!main.write(text)) {
+        fun rollback() {
+            val old = previousGood ?: return
+            val current = try { main.read() } catch (e: Exception) { null }
+            if (current == old) return   // D-032: main не менялся — лишняя truncate-запись не нужна
+            runCatching { main.write(old) } // best-effort; если порвётся — лечит кнопка recover
+        }
+
+        // Записываем основной файл только после подготовки актуального backup.
+        val mainWritten = try { main.write(text) } catch (e: Exception) { false }
+        if (!mainWritten) {
             rollback()
             return false
         }
 
         // Проверяем основной файл перечитыванием.
-        if (main.read() != text) {
+        val mainVerified = try { main.read() == text } catch (e: Exception) { false }
+        if (!mainVerified) {
             rollback()
             return false
         }
 
         // Обновляем backup и проверяем его содержимое.
-        if (!backup.write(text) || backup.read() != text) {
+        val backupUpdated = try {
+            backup.write(text) && backup.read() == text
+        } catch (e: Exception) {
+            false
+        }
+        if (!backupUpdated) {
             // D-029: backup не стал last-good — возвращаем previousGood или удаляем рваный первый
-            //D-032
-            // было: if (previousGood != null) backup.write(previousGood) else backup.delete()
             if (previousGood != null) {
-                if (!backup.write(previousGood) || backup.read() != previousGood) {
+                val backupRestored = try {
+                    backup.write(previousGood) && backup.read() == previousGood
+                } catch (e: Exception) {
+                    false
+                }
+                if (!backupRestored) {
                     // Удаляем backup только если старая копия действительно потеряна.
                     // При атомарном отказе записи прежнее содержимое остаётся целым.
-                    if (backup.read() != previousGood) {
-                        backup.delete()
-                    }
+                    val stillGood = try { backup.read() == previousGood } catch (e: Exception) { false }
+                    if (!stillGood) runCatching { backup.delete() }
                 }
             } else {
                 // Первой хорошей копии не было — удаляем возможный рваный файл.
-                backup.delete()
+                runCatching { backup.delete() }
             }
             rollback()
             return false
@@ -82,9 +114,11 @@ fun write(main: Target, backup: Target, text: String): Boolean {
         return true
     }
 
-    fun recover(main: Target, backup: Target): Boolean {
+    fun recover(main: Target, backup: Target): Boolean = try {
         val good = backup.read() ?: return false
         if (!main.write(good)) return false
-        return main.read() == good
+        main.read() == good
+    } catch (e: Exception) {
+        false
     }
 }
