@@ -33,6 +33,25 @@ class ContainerCodecTest {
         wraps: List<KeyHierarchy.Wrap> = listOf(wrap)
     ) = VaultContainer(config, wraps, records)
 
+    @Test
+    fun practicalReadLimitCountsUtf8Bytes() {
+        val asciiAtLimit = "a".repeat(ContainerCodec.MAX_READ_BYTES)
+        val multibyteOverLimit = "я".repeat(ContainerCodec.MAX_READ_BYTES / 2 + 1)
+
+        assertTrue(ContainerCodec.isWithinReadLimit(asciiAtLimit))
+        assertTrue(!ContainerCodec.isWithinReadLimit(multibyteOverLimit))
+        assertTrue(!ContainerCodec.isWithinReadLimit("a".repeat(ContainerCodec.MAX_READ_BYTES + 1)))
+    }
+
+    @Test
+    fun parseRejectsAbovePracticalReadLimit() {
+        val oversized = " ".repeat(ContainerCodec.MAX_READ_BYTES + 1)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            ContainerCodec.parse(oversized)
+        }
+    }
+
     // ===== Container roundtrip =====
 
     @Test

@@ -1,5 +1,7 @@
 package com.c0dex.core.store
 
+import com.c0dex.core.format.ContainerCodec
+
 /**
  * Crash-safe протокол записи сейфа (D-022), платформенно-нейтральный.
  *
@@ -36,6 +38,9 @@ fun write(main: Target, backup: Target, text: String): Boolean {
 
     // НОВАЯ ВЕРСИЯ:
     fun write(main: Target, backup: Target, text: String): Boolean {
+
+        // Не начинаем запись файла, который платформенный read не сможет принять.
+        if (!ContainerCodec.isWithinReadLimit(text)) return false
 
         // Сначала читаем именно текущее содержимое main.
         // Backup может отсутствовать или относиться к более старой версии файла.

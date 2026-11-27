@@ -1,5 +1,7 @@
 package com.c0dex.core.store
 
+import com.c0dex.core.format.ContainerCodec
+
 import org.junit.Test
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -23,6 +25,23 @@ class SafeWriteTest {
 
         override fun delete() { content = null }
 
+        /*
+override fun write(text: String): Boolean {
+    if (failAtomically) return false
+
+    val tornNow = torn
+    torn = false
+
+    content = if (tornNow || failWrite) {
+        text.take(text.length / 2)
+    } else {
+        text
+    }
+
+    return !failWrite
+}
+*/
+
         // НОВАЯ ВЕРСИЯ:
         override fun write(text: String): Boolean {
             writes++
@@ -43,6 +62,19 @@ class SafeWriteTest {
 
             return !failNow
         }
+    }
+
+    @Test
+    fun oversizedWriteIsRejectedBeforeTouchingTargets() {
+        val main = Fake("old")
+        val backup = Fake("old")
+        val oversized = "x".repeat(ContainerCodec.MAX_READ_BYTES + 1)
+
+        assertFalse(SafeWrite.write(main, backup, oversized))
+        assertEquals("old", main.content)
+        assertEquals("old", backup.content)
+        assertEquals(0, main.writes)
+        assertEquals(0, backup.writes)
     }
 
     @Test

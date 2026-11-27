@@ -226,6 +226,16 @@ object ContainerCodec {
 
     // ===== контейнер =====
 
+    /**
+     * Практический лимит применяется к фактическому размеру UTF-8 файла,
+     * а не к количеству UTF-16 символов в Kotlin String.
+     */
+    fun isWithinReadLimit(text: String): Boolean {
+        // Быстрый отсев: каждый символ занимает хотя бы один байт в UTF-8.
+        if (text.length > MAX_READ_BYTES) return false
+        return text.toByteArray(Charsets.UTF_8).size <= MAX_READ_BYTES
+    }
+
     fun serialize(c: VaultContainer): String {
         // Проверяем модель до Base64-кодирования и формирования JSON.
         validateContainer(c)
@@ -252,6 +262,9 @@ object ContainerCodec {
 
         require(result.length <= MAX_CONTAINER_CHARS) {
             "container is too large"
+        }
+        require(isWithinReadLimit(result)) {
+            "container exceeds the 16 MiB read/write limit"
         }
 
         return result
@@ -282,7 +295,12 @@ object ContainerCodec {
     */
 
     fun parse(text: String): VaultContainer {
-        // Нельзя отдавать JSON-декодеру неограниченный вход.
+        // Нельзя отдавать JSON-декодеру вход, который платформенный слой не сможет прочитать.
+        require(isWithinReadLimit(text)) {
+            "container exceeds the 16 MiB read/write limit"
+        }
+
+        // Форматный верхний предел сохраняется как дополнительная защита.
         require(text.length <= MAX_CONTAINER_CHARS) {
             "container is too large"
         }

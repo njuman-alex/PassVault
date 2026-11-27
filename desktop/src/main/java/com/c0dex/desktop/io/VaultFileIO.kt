@@ -40,6 +40,12 @@ object VaultFileIO {
 //        "Ошибка записи: ${e.javaClass.simpleName}"
 //    }
     fun writeAtomicMsg(p: Path, text: String): String? {
+        // Защита на уровне файлового слоя: нельзя сохранить файл,
+        // который VaultFileIO.read() затем отвергнет по MAX_READ_BYTES.
+        if (!ContainerCodec.isWithinReadLimit(text)) {
+            return "Размер сейфа превышает лимит 16 MiB"
+        }
+
         var tmp: Path? = null
         return try {
             tmp = Files.createTempFile(p.parent ?: Path.of("."), VaultFiles.TEMP_PREFIX, ".tmp")

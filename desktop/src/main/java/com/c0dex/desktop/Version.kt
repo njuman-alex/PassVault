@@ -6,5 +6,5 @@ package com.c0dex.desktop
  * packageVersion в gradle — отдельная сущность для установщика, бампай по необходимости.
  */
 object Version {
-    const val NAME = "5.7.1"
+    const val NAME = "5.7.2"
 }
